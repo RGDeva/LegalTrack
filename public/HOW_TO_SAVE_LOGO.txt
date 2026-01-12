@@ -1,0 +1,40 @@
+# How to Save the LegalTrack Logo
+
+The logo file exists but is EMPTY (0 bytes). You need to save the actual image.
+
+## Steps to Save the Logo:
+
+### Option 1 - From the Chat:
+1. Scroll up to find the logo image you uploaded in the chat
+2. Right-click on the image
+3. Select "Save Image As..."
+4. Navigate to: /Users/rishig/Downloads/praxis-plus-main/public/
+5. Save it as: logo.png
+
+### Option 2 - From Downloads:
+1. Find where you downloaded the logo image
+2. Open Finder
+3. Press Cmd+Shift+G
+4. Paste: /Users/rishig/Downloads/praxis-plus-main/public/
+5. Drag the logo image into this folder
+6. Rename it to: logo.png
+
+### Option 3 - Using Terminal:
+If you have the logo in Downloads:
+cd /Users/rishig/Downloads/praxis-plus-main/public/
+cp ~/Downloads/legaltrack-logo.png logo.png
+
+(Replace "legaltrack-logo.png" with your actual filename)
+
+## Verify the Logo is Saved:
+Run this command to check the file size:
+ls -lh /Users/rishig/Downloads/praxis-plus-main/public/logo.png
+
+It should show a size like "65K" or similar, NOT "0B"
+
+## After Saving:
+1. Hard refresh browser (Cmd+Shift+R)
+2. Logo will appear in:
+   - Browser tab (favicon)
+   - Sidebar (top left)
+   - Login page (centered)

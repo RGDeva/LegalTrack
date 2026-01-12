@@ -1,0 +1,51 @@
+# EC Invoice Template Required
+
+## Action Needed:
+Place your EC Invoice Template DOCX file in this directory with the exact name:
+"EC Invoice Template 07.03.25.docx"
+
+## Full Path:
+backend/templates/EC Invoice Template 07.03.25.docx
+
+## Template Tags Required:
+The DOCX template must contain these merge fields:
+
+### Client Information:
+- {client.name}
+- {clientAddress1Line1}
+- {clientAddress1Line2}
+- {clientAddress1City}
+- {clientAddress1State}
+- {clientAddress1Zip}
+
+### Invoice Details:
+- {invoiceNumber}
+- {invoiceDate}
+- {invoiceTermsDays}
+- {invoiceDueDate}
+- {invoiceTotalBalance}
+- {invoiceStartDate}
+- {invoiceEndDate}
+
+### Time Entries (ProjectTime array):
+- {billingitemdate}
+- {billingitemdescription}
+- {billingitemuserFullName}
+- {billingitemrate}
+- {billingitemquantity}
+- {billingItemTotal}
+
+## How to Use:
+1. Copy your EC Invoice Template DOCX file to this directory
+2. Rename it to: "EC Invoice Template 07.03.25.docx"
+3. Ensure it contains all the merge fields listed above
+4. Test by clicking "Generate DOCX" on any invoice
+
+## Testing:
+Once the template is in place:
+1. Go to Invoices page
+2. Click on any invoice to view details
+3. Click "Generate DOCX" button
+4. DOCX file will download automatically
+
+The backend endpoint is ready and will use the stored 6-minute rounded values and rates from your time tracking system.

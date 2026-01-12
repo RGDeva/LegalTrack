@@ -1,0 +1,61 @@
+# WHERE TO FIND ENVIRONMENT VARIABLES IN RAILWAY
+
+## Step-by-Step Visual Guide:
+
+1. Open this URL in your browser:
+   https://railway.com/project/f42f9123-6617-42b9-b17b-08dcb4656a9a
+
+2. You'll see a page with:
+   - Project name "LegalTrack" at the top
+   - One or more SERVICE CARDS (boxes) in the middle
+
+3. CLICK ON THE SERVICE CARD
+   - It might say "LegalTrack" or show your backend service
+   - It's a rectangular box/card
+
+4. After clicking, you'll see a NEW PAGE with tabs at the TOP:
+   
+   Deployments | Variables | Settings | Metrics | Logs
+                    ↑
+              CLICK THIS TAB
+
+5. In the Variables tab, you'll see:
+   - A list of existing variables (might be empty)
+   - A button: "+ New Variable" or "Add Variable"
+   - Click that button to add each variable
+
+---
+
+## If You Still Don't See It:
+
+The Variables tab might be called:
+- "Variables"
+- "Environment Variables"
+- "Env Vars"
+
+Look for any tab with those words.
+
+---
+
+## Alternative: Use CLI (Easier)
+
+If you can't find it in the dashboard, just use these commands:
+
+cd /Users/rishig/Downloads/praxis-plus-main/backend
+
+railway variables --set "DATABASE_URL=your_neon_url"
+railway variables --set "JWT_SECRET=xTs4ts/WPRsugSRr4W/rcM47EAtnyOQDo5nL932Ecig="
+railway variables --set "JWT_EXPIRES_IN=7d"
+railway variables --set "ADMIN_EMAIL=dylan.barrett@embeddedcounsel.com"
+railway variables --set "ADMIN_PASSWORD=YourPassword123"
+railway variables --set "PORT=3001"
+
+---
+
+IMPORTANT: You MUST replace:
+- DATABASE_URL with your actual Neon Postgres URL
+- ADMIN_PASSWORD with your chosen password
+
+---
+
+The CLI method is actually FASTER and EASIER than the dashboard!

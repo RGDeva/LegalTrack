@@ -1,0 +1,66 @@
+feat: add run timer, /log parser, billing codes, and invoice generator with EC template
+
+Implemented comprehensive time tracking and billing features:
+
+1. Run Timer Component
+   - Added CaseTimer component with Start/Pause/Stop controls
+   - Real-time elapsed time display in hh:mm format
+   - Auto-creates time entries on stop with 6-minute rounding
+   - Integrated billing code selection
+   - Rate preview for Admin/Attorney roles
+
+2. /log Command Parser
+   - Parses "/log 11m description" format in Runsheet
+   - Auto-rounds duration to 6-minute increments
+   - Creates both runsheet entry and time entry
+   - Live preview of parsed command
+
+3. Billing Codes System
+   - Seeded 7 default codes (001-007) as specified
+   - Code 001: Managing case file
+   - Code 002: Writing and emails, letters, and other communications
+   - Code 003: Court events
+   - Code 004: Drafting or reviewing documents
+   - Code 005: Legal research
+   - Code 006: Meeting or call with others
+   - Code 007: Travel time
+   - Role-based rate policies (Admin, Attorney, Staff)
+   - Admin-only management interface at Settings → Billing
+
+4. Invoice Generation
+   - "Generate Invoice" button on Invoices page
+   - Gathers unbilled time entries by case
+   - Aggregates by billing code and description
+   - Calculates total hours and amounts
+   - Downloads text invoice (placeholder for PDF with EC template)
+   - Marks time entries as billed
+
+5. Role-Based Access Control
+   - Admin: Full access to all features
+   - Attorney: Can view rates and generate invoices
+   - Staff: Cannot view rates or access billing settings
+   - Implemented canViewRates() and isAdmin() utilities
+
+6. Dashboard Enhancements
+   - "Billable Hours (Month)" metric card
+   - "Ready to Invoice" amount from unbilled time
+   - "Active Timers" count (Admin only)
+   - Role-based metric visibility
+
+7. Data Seeding
+   - 4 sample users (Admin, 2 Attorneys, Staff)
+   - 7 billing codes with rate policies
+   - 4 sample time entries for demonstration
+   - Auto-seeds on first app load
+
+Technical Details:
+- Time entries stored in localStorage
+- 6-minute increment rounding: Math.ceil(minutes / 6) * 6
+- Rates stored in cents for precision
+- Invoice generation marks entries as billed
+- All existing UI/UX preserved
+- TypeScript types updated for new data structures
+- Build successful with no errors
+
+Note: PDF generation using DOCX template is placeholder (text format).
+Future enhancement will integrate actual EC Invoice Template.

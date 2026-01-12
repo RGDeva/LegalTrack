@@ -1,0 +1,222 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String?
+  name          String
+  role          String
+  firmId        String?
+  phone         String?
+  department    String?
+  barNumber     String?
+  billableRate  Float?
+  status        String    @default("active")
+  joinDate      DateTime?
+  avatar        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  timeEntries   TimeEntry[]
+  documents     Document[]
+  assignedTasks Task[]        @relation("AssignedTasks")
+  createdTasks  Task[]        @relation("CreatedTasks")
+  taskComments  TaskComment[]
+}
+
+model Case {
+  id            String    @id @default(cuid())
+  caseNumber    String    @unique
+  title         String
+  clientId      String?
+  clientName    String?
+  status        String
+  type          String
+  priority      String
+  assignedTo    String?
+  nextHearing   DateTime?
+  description   String?   @db.Text
+  dateOpened    DateTime?
+  billingType   String?
+  hourlyRate    Float?
+  totalBilled   Float     @default(0)
+  totalPaid     Float     @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  invoices      Invoice[]
+  documents     Document[]
+  timeEntries   TimeEntry[]
+  tasks         Task[]
+  
+  @@index([caseNumber])
+  @@index([status])
+}
+
+model Contact {
+  id            String    @id @default(cuid())
+  name          String
+  email         String
+  phone         String?
+  mobile        String?
+  organization  String?
+  title         String?
+  role          String?
+  address       String?
+  city          String?
+  state         String?
+  zip           String?
+  category      String?
+  notes         String?   @db.Text
+  lastContact   DateTime?
+  tags          String[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  invoices      Invoice[]
+  
+  @@index([email])
+  @@index([category])
+}
+
+model Invoice {
+  id              String    @id @default(cuid())
+  invoiceNumber   String    @unique
+  caseId          String?
+  case            Case?     @relation(fields: [caseId], references: [id])
+  contactId       String?
+  contact         Contact?  @relation(fields: [contactId], references: [id])
+  amount          Float
+  status          String
+  dueDate         DateTime?
+  paidDate        DateTime?
+  description     String?   @db.Text
+  fileKey         String?
+  fileName        String?
+  mimeType        String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  timeEntries     TimeEntry[]
+  
+  @@index([invoiceNumber])
+  @@index([status])
+}
+
+model Document {
+  id            String    @id @default(cuid())
+  caseId        String?
+  case          Case?     @relation(fields: [caseId], references: [id])
+  name          String
+  type          String?
+  category      String?
+  fileKey       String
+  fileName      String
+  mimeType      String
+  size          Int
+  uploadedBy    String?
+  uploader      User?     @relation(fields: [uploadedBy], references: [id])
+  tags          String[]
+  createdAt     DateTime  @default(now())
+  
+  @@index([caseId])
+}
+
+model TimeEntry {
+  id                    String    @id @default(cuid())
+  matterId              String?
+  matter                Case?     @relation(fields: [matterId], references: [id])
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id])
+  taskId                String?
+  task                  Task?     @relation(fields: [taskId], references: [id])
+  description           String    @db.Text
+  startedAt             DateTime?
+  endedAt               DateTime?
+  durationMinutesRaw    Int?
+  durationMinutesBilled Int
+  billingCodeId         String?
+  billingCode           BillingCode? @relation(fields: [billingCodeId], references: [id])
+  rateCentsApplied      Int
+  amountCents           Int
+  status                String    @default("draft")
+  invoiceId             String?
+  invoice               Invoice?  @relation(fields: [invoiceId], references: [id])
+  tags                  String[]
+  createdAt             DateTime  @default(now())
+  
+  @@index([userId])
+  @@index([matterId])
+  @@index([status])
+  @@index([invoiceId])
+  @@index([createdAt])
+}
+
+model Task {
+  id            String    @id @default(cuid())
+  title         String
+  description   String?   @db.Text
+  status        String    @default("pending")
+  priority      String    @default("medium")
+  dueDate       DateTime?
+  caseId        String?
+  case          Case?     @relation(fields: [caseId], references: [id])
+  assignedToId  String?
+  assignedTo    User?     @relation("AssignedTasks", fields: [assignedToId], references: [id])
+  createdById   String
+  createdBy     User      @relation("CreatedTasks", fields: [createdById], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  comments      TaskComment[]
+  timeEntries   TimeEntry[]
+  
+  @@index([status])
+  @@index([assignedToId])
+  @@index([caseId])
+}
+
+model TaskComment {
+  id            String    @id @default(cuid())
+  taskId        String
+  task          Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  comment       String    @db.Text
+  createdAt     DateTime  @default(now())
+  
+  @@index([taskId])
+  @@index([userId])
+}
+
+model BillingCode {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  label           String
+  rateSource      String
+  fixedRateCents  Int?
+  overrideRole    String?
+  active          Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  timeEntries     TimeEntry[]
+  
+  @@index([code])
+  @@index([active])
+}
+
+model RoleRate {
+  id              String    @id @default(cuid())
+  role            String    @unique
+  rateCents       Int
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}

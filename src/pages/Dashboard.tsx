@@ -1,0 +1,171 @@
+import { useState } from "react";
+import { Briefcase, Users, Clock, DollarSign, FileText, Calendar, Timer } from "lucide-react";
+import { StatCard } from "@/components/dashboard/StatCard";
+import { RecentActivity } from "@/components/dashboard/RecentActivity";
+import { CaseList } from "@/components/cases/CaseList";
+import { CalendarView } from "@/components/dashboard/CalendarView";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/contexts/AuthContext";
+import { TimeEntry } from "@/types";
+import { calculateEffectiveRate } from "@/lib/time-utils";
+
+const Dashboard = () => {
+  const { user } = useAuth();
+  const activeCases = [].filter(c => c.status === 'active').length;
+  const totalClients = 15;
+  const unbilledHours = [].filter(t => !t.billed).reduce((acc, t) => acc + (t.duration / 10), 0).toFixed(1);
+  const pendingInvoices = [].reduce((acc, inv) => acc + inv.balance, 0);
+
+  // New metrics for time tracking
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  
+  // Get time entries from localStorage
+  const timeEntriesJson = localStorage.getItem('timeEntries') || '[]';
+  const allTimeEntries: TimeEntry[] = JSON.parse(timeEntriesJson);
+  
+  // Calculate billable hours for current month
+  const monthlyBillableHours = allTimeEntries
+    .filter(entry => {
+      const entryDate = new Date(entry.createdAt);
+      return entryDate.getMonth() === currentMonth && entryDate.getFullYear() === currentYear;
+    })
+    .reduce((total, entry) => total + (entry.billableMinutes / 60), 0);
+  
+  // Calculate amount ready to invoice (unbilled time)
+  const amountReadyToInvoice = allTimeEntries
+    .filter(entry => !entry.billingCodeId?.includes('_billed'))
+    .reduce((total, entry) => {
+      const entryUser = [].find(u => u.id === entry.userId);
+      const billingCode = entry.billingCodeId 
+        ? [].find(bc => bc.id === entry.billingCodeId)
+        : null;
+      
+      if (entryUser && billingCode) {
+        const rate = calculateEffectiveRate(entryUser, billingCode);
+        const hours = entry.billableMinutes / 60;
+        return total + (hours * rate / 100); // Convert cents to dollars
+      }
+      return total;
+    }, 0);
+  
+  // Count active timers (timers running in last 24 hours)
+  const activeTimers = allTimeEntries.filter(entry => {
+    const entryTime = new Date(entry.createdAt).getTime();
+    const now = Date.now();
+    return (now - entryTime) < 24 * 60 * 60 * 1000; // Last 24 hours
+  }).length;
+
+  return (
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <p className="text-muted-foreground">Welcome back to LegalTrack Pro</p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Active Cases"
+          value={activeCases}
+          subtitle="2 urgent priority"
+          icon={Briefcase}
+          trend={{ value: 12, isPositive: true }}
+        />
+        <StatCard
+          title="Billable Hours (Month)"
+          value={monthlyBillableHours.toFixed(1)}
+          subtitle="Current month"
+          icon={Clock}
+        />
+        <StatCard
+          title="Ready to Invoice"
+          value={`$${amountReadyToInvoice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          subtitle="Unbilled time"
+          icon={DollarSign}
+        />
+        {user?.role === 'Admin' && (
+          <StatCard
+            title="Active Timers"
+            value={activeTimers}
+            subtitle="Last 24 hours"
+            icon={Timer}
+          />
+        )}
+        {user?.role !== 'Admin' && (
+          <StatCard
+            title="Pending Invoices"
+            value={`$${pendingInvoices.toLocaleString()}`}
+            subtitle="3 overdue"
+            icon={DollarSign}
+            trend={{ value: 5, isPositive: false }}
+          />
+        )}
+      </div>
+
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="calendar">
+            <Calendar className="h-4 w-4 mr-2" />
+            Calendar
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2 space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Active Cases</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CaseList />
+                </CardContent>
+              </Card>
+            </div>
+            <div className="space-y-6">
+              <RecentActivity />
+              <Card>
+                <CardHeader>
+                  <CardTitle>Upcoming Deadlines</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                      <Calendar className="h-5 w-5 text-warning mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium">Discovery Deadline</p>
+                        <p className="text-xs text-muted-foreground">Feb 25 - Johnson v. Smith</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Calendar className="h-5 w-5 text-info mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium">Client Meeting</p>
+                        <p className="text-xs text-muted-foreground">Feb 15 - Margaret Green</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Calendar className="h-5 w-5 text-destructive mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium">Court Hearing</p>
+                        <p className="text-xs text-muted-foreground">Feb 20 - Johnson v. Smith</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="calendar">
+          <CalendarView />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+export default Dashboard;
