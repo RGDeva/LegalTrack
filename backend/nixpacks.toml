@@ -2,10 +2,7 @@
 nixPkgs = ["nodejs-18_x", "openssl"]
 
 [phases.install]
-cmds = ["npm ci --only=production", "npx prisma generate"]
-
-[phases.build]
-cmds = ["echo 'Build phase complete'"]
+cmds = ["npm install", "npx prisma generate"]
 
 [start]
 cmd = "node src/server.js"
