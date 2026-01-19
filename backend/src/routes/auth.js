@@ -32,12 +32,13 @@ router.post('/google', async (req, res) => {
     
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
+      process.env.JWT_SECRET || 'fallback-secret',
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
     
     res.json({ token, user });
   } catch (error) {
+    console.error('Google auth error:', error);
     res.status(401).json({ error: 'Authentication failed' });
   }
 });
@@ -58,12 +59,13 @@ router.post('/login', async (req, res) => {
     
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
+      process.env.JWT_SECRET || 'fallback-secret',
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
     
     res.json({ token, user });
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({ error: error.message });
   }
 });
