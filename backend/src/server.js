@@ -1,6 +1,14 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+
+dotenv.config();
+
+console.log('Starting LegalTrack API...');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('PORT:', process.env.PORT);
+console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+
 import authRoutes from './routes/auth.js';
 import caseRoutes from './routes/cases.js';
 import contactRoutes from './routes/contacts.js';
@@ -14,7 +22,7 @@ import billingCodesRoutes from './routes/billingCodes.js';
 import roleRatesRoutes from './routes/roleRates.js';
 import invoiceDocxRoutes from './routes/invoiceDocx.js';
 
-dotenv.config();
+console.log('All routes imported successfully');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
