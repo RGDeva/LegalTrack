@@ -1,8 +1,11 @@
 [phases.setup]
-nixPkgs = ["nodejs-18_x", "openssl"]
+nixPkgs = ["nodejs_18", "openssl"]
 
 [phases.install]
-cmds = ["npm install", "npx prisma generate"]
+cmds = ["npm install"]
+
+[phases.build]
+cmds = ["npx prisma generate"]
 
 [start]
 cmd = "node src/server.js"
