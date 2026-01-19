@@ -12,10 +12,10 @@ import { calculateEffectiveRate } from "@/lib/time-utils";
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const activeCases = [].filter(c => c.status === 'active').length;
-  const totalClients = 15;
-  const unbilledHours = [].filter(t => !t.billed).reduce((acc, t) => acc + (t.duration / 10), 0).toFixed(1);
-  const pendingInvoices = [].reduce((acc, inv) => acc + inv.balance, 0);
+  const activeCases = 0; // Will be loaded from API
+  const totalClients = 0; // Will be loaded from API
+  const unbilledHours = 0; // Will be calculated from time entries
+  const pendingInvoices = 0; // Will be loaded from API
 
   // New metrics for time tracking
   const currentMonth = new Date().getMonth();
@@ -34,21 +34,7 @@ const Dashboard = () => {
     .reduce((total, entry) => total + (entry.billableMinutes / 60), 0);
   
   // Calculate amount ready to invoice (unbilled time)
-  const amountReadyToInvoice = allTimeEntries
-    .filter(entry => !entry.billingCodeId?.includes('_billed'))
-    .reduce((total, entry) => {
-      const entryUser = [].find(u => u.id === entry.userId);
-      const billingCode = entry.billingCodeId 
-        ? [].find(bc => bc.id === entry.billingCodeId)
-        : null;
-      
-      if (entryUser && billingCode) {
-        const rate = calculateEffectiveRate(entryUser, billingCode);
-        const hours = entry.billableMinutes / 60;
-        return total + (hours * rate / 100); // Convert cents to dollars
-      }
-      return total;
-    }, 0);
+  const amountReadyToInvoice = 0; // Will be calculated when we have user and billing code data
   
   // Count active timers (timers running in last 24 hours)
   const activeTimers = allTimeEntries.filter(entry => {

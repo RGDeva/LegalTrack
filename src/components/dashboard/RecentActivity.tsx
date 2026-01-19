@@ -28,6 +28,12 @@ export function RecentActivity() {
     try {
       const token = localStorage.getItem('authToken');
       
+      if (!token) {
+        console.log('No auth token found, skipping activity load');
+        setLoading(false);
+        return;
+      }
+      
       // Fetch recent cases, contacts, time entries, and invoices
       const [casesRes, contactsRes, timeEntriesRes, invoicesRes] = await Promise.all([
         fetch(`${API_URL}/cases`, { headers: { 'Authorization': `Bearer ${token}` } }),
@@ -36,11 +42,23 @@ export function RecentActivity() {
         fetch(`${API_URL}/invoices`, { headers: { 'Authorization': `Bearer ${token}` } })
       ]);
 
-      // Parse responses with error handling
+      // Parse responses with error handling - check for 401 and handle gracefully
       const cases = casesRes.ok ? await casesRes.json() : [];
       const contacts = contactsRes.ok ? await contactsRes.json() : [];
       const timeEntries = timeEntriesRes.ok ? await timeEntriesRes.json() : [];
       const invoices = invoicesRes.ok ? await invoicesRes.json() : [];
+      
+      // If all requests failed with 401, token might be invalid
+      if (!casesRes.ok && !contactsRes.ok && !timeEntriesRes.ok && !invoicesRes.ok) {
+        if (casesRes.status === 401) {
+          console.log('Authentication failed - token may be invalid');
+          // Clear invalid token
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('currentUser');
+        }
+        setLoading(false);
+        return;
+      }
 
       const recentActivities: Activity[] = [];
 
