@@ -48,9 +48,11 @@ export function RecentActivity() {
       const timeEntries = timeEntriesRes.ok ? await timeEntriesRes.json() : [];
       const invoices = invoicesRes.ok ? await invoicesRes.json() : [];
       
-      // If all requests failed with 401, token might be invalid
+      // If all requests failed, check if any returned 401 (invalid token)
       if (!casesRes.ok && !contactsRes.ok && !timeEntriesRes.ok && !invoicesRes.ok) {
-        if (casesRes.status === 401) {
+        const responses = [casesRes, contactsRes, timeEntriesRes, invoicesRes];
+        const has401 = responses.some(res => res.status === 401);
+        if (has401) {
           console.log('Authentication failed - token may be invalid');
           // Clear invalid token
           localStorage.removeItem('authToken');

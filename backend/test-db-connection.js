@@ -20,15 +20,20 @@ async function testConnection() {
     const userCount = await prisma.user.count();
     console.log(`✅ Found ${userCount} users in database`);
     
-    // Check if admin user exists
-    const admin = await prisma.user.findFirst({
-      where: { email: 'dylan.barrett@embeddedcounsel.com' }
-    });
-    
-    if (admin) {
-      console.log('✅ Admin user exists:', admin.email);
+    // Check if admin user exists (if ADMIN_EMAIL is set)
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (adminEmail) {
+      const admin = await prisma.user.findFirst({
+        where: { email: adminEmail }
+      });
+      
+      if (admin) {
+        console.log('✅ Admin user exists');
+      } else {
+        console.log('⚠️  Admin user not found');
+      }
     } else {
-      console.log('⚠️  Admin user not found');
+      console.log('ℹ️  ADMIN_EMAIL not set, skipping admin check');
     }
     
   } catch (error) {

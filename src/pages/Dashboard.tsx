@@ -54,9 +54,8 @@ const Dashboard = () => {
         <StatCard
           title="Active Cases"
           value={activeCases}
-          subtitle="2 urgent priority"
+          subtitle={activeCases > 0 ? "Loading details..." : "No active cases"}
           icon={Briefcase}
-          trend={{ value: 12, isPositive: true }}
         />
         <StatCard
           title="Billable Hours (Month)"
@@ -82,9 +81,8 @@ const Dashboard = () => {
           <StatCard
             title="Pending Invoices"
             value={`$${pendingInvoices.toLocaleString()}`}
-            subtitle="3 overdue"
+            subtitle={pendingInvoices > 0 ? "Loading details..." : "No pending invoices"}
             icon={DollarSign}
-            trend={{ value: 5, isPositive: false }}
           />
         )}
       </div>

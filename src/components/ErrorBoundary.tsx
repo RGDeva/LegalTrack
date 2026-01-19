@@ -27,7 +27,6 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   private handleReset = () => {
-    this.setState({ hasError: false, error: null });
     window.location.href = '/';
   };
 
@@ -46,7 +45,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <p className="text-sm text-muted-foreground">
                 The application encountered an unexpected error. This has been logged and we'll look into it.
               </p>
-              {this.state.error && (
+              {this.state.error && import.meta.env.DEV && (
                 <details className="text-xs text-muted-foreground bg-muted p-3 rounded-md">
                   <summary className="cursor-pointer font-medium mb-2">Error details</summary>
                   <pre className="whitespace-pre-wrap break-words">
