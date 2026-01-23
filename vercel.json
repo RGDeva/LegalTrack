@@ -4,15 +4,8 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "vite",
-  "routes": [
-    {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
+  "rewrites": [
+    { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ],
   "env": {
     "VITE_API_URL": "@api_url"
