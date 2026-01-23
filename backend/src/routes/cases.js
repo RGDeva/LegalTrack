@@ -16,7 +16,9 @@ router.get('/', verifyToken, async (req, res) => {
 
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { title, clientId, clientName, status, type, priority, description, matterNumber } = req.body;
+    console.log('Creating case with body:', JSON.stringify(req.body, null, 2));
+    
+    const { title, clientId, clientName, status, type, priority, description, matterNumber, assignedTo, billingType, hourlyRate, nextHearing } = req.body;
     
     // Generate case number if not provided
     const caseNumber = matterNumber || `CASE-${Date.now()}`;
@@ -31,12 +33,18 @@ router.post('/', verifyToken, async (req, res) => {
         type: type || 'General',
         priority: priority || 'Medium',
         description: description || null,
+        assignedTo: assignedTo || null,
+        billingType: billingType || null,
+        hourlyRate: hourlyRate ? parseFloat(hourlyRate) : null,
+        nextHearing: nextHearing ? new Date(nextHearing) : null,
         dateOpened: new Date()
       }
     });
+    console.log('Case created successfully:', caseData.id);
     res.status(201).json(caseData);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Case creation error:', error);
+    res.status(500).json({ error: error.message, details: error.toString() });
   }
 });
 
