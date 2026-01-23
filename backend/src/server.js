@@ -28,19 +28,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, etc)
-    if (!origin) return callback(null, true);
-    
-    // Allow all vercel.app domains and localhost
-    if (origin.includes('vercel.app') || 
-        origin.includes('localhost') || 
-        origin.includes('127.0.0.1')) {
-      return callback(null, true);
-    }
-    
-    callback(null, true); // Allow all origins for now
-  },
+  origin: true,
   credentials: true
 }));
 app.use(express.json());
