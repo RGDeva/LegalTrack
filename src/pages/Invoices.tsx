@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Eye, Edit, Send, Download, MoreVertical, FileText } from "lucide-react";
+import { API_URL } from "@/lib/api-url";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -33,9 +34,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+interface Case {
+  id: string;
+  caseNumber: string;
+  title: string;
+  status: string;
+}
+
 const Invoices = () => {
   const { toast } = useToast();
   const [invoices, setInvoices] = useState([]);
+  const [cases, setCases] = useState<Case[]>([]);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -43,6 +52,29 @@ const Invoices = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [selectedCaseForInvoice, setSelectedCaseForInvoice] = useState<string>("");
+
+  // Fetch cases from API
+  useEffect(() => {
+    const fetchCases = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+        
+        const res = await fetch(`${API_URL}/cases`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          setCases(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch cases:', error);
+      }
+    };
+    
+    fetchCases();
+  }, []);
 
   const filteredInvoices = invoices.filter(inv => 
     statusFilter === "all" || inv.status === statusFilter
@@ -312,11 +344,21 @@ const Invoices = () => {
                   <SelectValue placeholder="Choose a case..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {[].filter(c => c.status === 'active').map(caseItem => (
+                  {cases.filter(c => c.status?.toLowerCase() === 'active').map(caseItem => (
                     <SelectItem key={caseItem.id} value={caseItem.id}>
                       {caseItem.caseNumber} - {caseItem.title}
                     </SelectItem>
                   ))}
+                  {cases.filter(c => c.status?.toLowerCase() !== 'active').length > 0 && (
+                    <>
+                      <SelectItem value="__divider__" disabled>── Other Cases ──</SelectItem>
+                      {cases.filter(c => c.status?.toLowerCase() !== 'active').map(caseItem => (
+                        <SelectItem key={caseItem.id} value={caseItem.id}>
+                          {caseItem.caseNumber} - {caseItem.title}
+                        </SelectItem>
+                      ))}
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>

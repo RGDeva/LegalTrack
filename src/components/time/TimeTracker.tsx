@@ -30,7 +30,8 @@ export function TimeTracker() {
   const [endTime, setEndTime] = useState("");
   const [description, setDescription] = useState("");
   const [billable, setBillable] = useState(true);
-  const [elapsedTime, setElapsedTime] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [timerStartTime, setTimerStartTime] = useState<Date | null>(null);
   const [cases, setCases] = useState<Case[]>([]);
   const [runningTimerId, setRunningTimerId] = useState<string | null>(null);
 
@@ -56,6 +57,31 @@ export function TimeTracker() {
     
     fetchCases();
   }, []);
+
+  // Elapsed time counter
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    
+    if (isTracking && timerStartTime) {
+      interval = setInterval(() => {
+        const now = new Date();
+        const elapsed = Math.floor((now.getTime() - timerStartTime.getTime()) / 1000);
+        setElapsedSeconds(elapsed);
+      }, 1000);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isTracking, timerStartTime]);
+
+  // Format elapsed time as HH:MM:SS
+  const formatElapsedTime = (seconds: number) => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const calculateDuration = (start: string, end: string) => {
     if (!start || !end) return 0;
@@ -108,6 +134,8 @@ export function TimeTracker() {
         const now = new Date();
         const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
         setStartTime(timeString);
+        setTimerStartTime(now);
+        setElapsedSeconds(0);
         setIsTracking(true);
         toast.success('Timer started');
       } else {
@@ -144,6 +172,7 @@ export function TimeTracker() {
         const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
         setEndTime(timeString);
         setIsTracking(false);
+        setTimerStartTime(null);
         toast.success('Timer stopped');
       } else {
         const error = await res.json();
@@ -232,6 +261,19 @@ export function TimeTracker() {
           </Select>
         </div>
 
+        {/* Live Elapsed Time Display */}
+        {isTracking && (
+          <div className="p-6 bg-primary/10 rounded-lg text-center border-2 border-primary">
+            <p className="text-sm text-muted-foreground mb-2">Timer Running</p>
+            <p className="text-4xl font-mono font-bold text-primary">
+              {formatElapsedTime(elapsedSeconds)}
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Started at {startTime}
+            </p>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="start-time">Start Time</Label>
@@ -240,6 +282,7 @@ export function TimeTracker() {
               type="time"
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
+              disabled={isTracking}
             />
           </div>
           <div className="space-y-2">
@@ -249,11 +292,12 @@ export function TimeTracker() {
               type="time"
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
+              disabled={isTracking}
             />
           </div>
         </div>
 
-        {startTime && endTime && (
+        {startTime && endTime && !isTracking && (
           <div className="p-4 bg-muted rounded-lg">
             <p className="text-sm text-muted-foreground">Duration</p>
             <p className="text-lg font-semibold">
