@@ -28,14 +28,19 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors({
-  origin: [
-    'http://localhost:8080', 
-    'http://localhost:8081',
-    'http://localhost:5173',
-    'https://legaltrack.vercel.app',
-    'https://legal-track-nine.vercel.app',
-    /\.vercel\.app$/
-  ],
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc)
+    if (!origin) return callback(null, true);
+    
+    // Allow all vercel.app domains and localhost
+    if (origin.includes('vercel.app') || 
+        origin.includes('localhost') || 
+        origin.includes('127.0.0.1')) {
+      return callback(null, true);
+    }
+    
+    callback(null, true); // Allow all origins for now
+  },
   credentials: true
 }));
 app.use(express.json());
