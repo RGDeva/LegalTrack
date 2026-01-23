@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,15 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Play, Pause, Save, Clock } from "lucide-react";
+import { toast } from "sonner";
+import { API_URL } from "@/lib/api-url";
+
+interface Case {
+  id: string;
+  caseNumber: string;
+  title: string;
+  status: string;
+}
 
 export function TimeTracker() {
   const [isTracking, setIsTracking] = useState(false);
@@ -22,6 +31,31 @@ export function TimeTracker() {
   const [description, setDescription] = useState("");
   const [billable, setBillable] = useState(true);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [cases, setCases] = useState<Case[]>([]);
+  const [runningTimerId, setRunningTimerId] = useState<string | null>(null);
+
+  // Fetch cases from API
+  useEffect(() => {
+    const fetchCases = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+        
+        const res = await fetch(`${API_URL}/cases`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          setCases(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch cases:', error);
+      }
+    };
+    
+    fetchCases();
+  }, []);
 
   const calculateDuration = (start: string, end: string) => {
     if (!start || !end) return 0;
@@ -48,36 +82,119 @@ export function TimeTracker() {
     return `${hours}h ${minutes}m (${increments} units)`;
   };
 
-  const handleStartTracking = () => {
-    const now = new Date();
-    const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    setStartTime(timeString);
-    setIsTracking(true);
+  const handleStartTracking = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        toast.error('Please log in to track time');
+        return;
+      }
+
+      const res = await fetch(`${API_URL}/time-entries/start`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          matterId: selectedCase,
+          description: description || ''
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setRunningTimerId(data.id);
+        const now = new Date();
+        const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        setStartTime(timeString);
+        setIsTracking(true);
+        toast.success('Timer started');
+      } else {
+        const error = await res.json();
+        toast.error(error.error || 'Failed to start timer');
+      }
+    } catch (error) {
+      console.error('Start timer error:', error);
+      toast.error('Failed to start timer');
+    }
   };
 
-  const handleStopTracking = () => {
-    const now = new Date();
-    const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    setEndTime(timeString);
-    setIsTracking(false);
+  const handleStopTracking = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token || !runningTimerId) {
+        const now = new Date();
+        const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        setEndTime(timeString);
+        setIsTracking(false);
+        return;
+      }
+
+      const res = await fetch(`${API_URL}/time-entries/stop/${runningTimerId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (res.ok) {
+        const now = new Date();
+        const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        setEndTime(timeString);
+        setIsTracking(false);
+        toast.success('Timer stopped');
+      } else {
+        const error = await res.json();
+        toast.error(error.error || 'Failed to stop timer');
+      }
+    } catch (error) {
+      console.error('Stop timer error:', error);
+      toast.error('Failed to stop timer');
+    }
   };
 
-  const handleSave = () => {
-    const duration = calculateDuration(startTime, endTime);
-    console.log('Saving time entry:', {
-      case: selectedCase,
-      startTime,
-      endTime,
-      duration,
-      description,
-      billable
-    });
-    // Reset form
-    setSelectedCase("");
-    setStartTime("");
-    setEndTime("");
-    setDescription("");
-    setBillable(true);
+  const handleSave = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        toast.error('Please log in to save time entry');
+        return;
+      }
+
+      const durationMinutes = calculateDuration(startTime, endTime) * 6; // Convert increments to minutes
+
+      const res = await fetch(`${API_URL}/time-entries/manual`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          matterId: selectedCase,
+          description: description,
+          durationMinutesRaw: durationMinutes
+        })
+      });
+
+      if (res.ok) {
+        toast.success('Time entry saved');
+        // Reset form
+        setSelectedCase("");
+        setStartTime("");
+        setEndTime("");
+        setDescription("");
+        setBillable(true);
+        setRunningTimerId(null);
+      } else {
+        const error = await res.json();
+        toast.error(error.error || 'Failed to save time entry');
+      }
+    } catch (error) {
+      console.error('Save time entry error:', error);
+      toast.error('Failed to save time entry');
+    }
   };
 
   return (
@@ -96,11 +213,21 @@ export function TimeTracker() {
               <SelectValue placeholder="Choose a case" />
             </SelectTrigger>
             <SelectContent>
-              {[].filter(c => c.status === 'active').map((case_) => (
+              {cases.filter(c => c.status?.toLowerCase() === 'active').map((case_) => (
                 <SelectItem key={case_.id} value={case_.id}>
                   {case_.caseNumber} - {case_.title}
                 </SelectItem>
               ))}
+              {cases.filter(c => c.status?.toLowerCase() !== 'active').length > 0 && (
+                <>
+                  <SelectItem value="__divider__" disabled>── Other Cases ──</SelectItem>
+                  {cases.filter(c => c.status?.toLowerCase() !== 'active').map((case_) => (
+                    <SelectItem key={case_.id} value={case_.id}>
+                      {case_.caseNumber} - {case_.title}
+                    </SelectItem>
+                  ))}
+                </>
+              )}
             </SelectContent>
           </Select>
         </div>
