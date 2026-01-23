@@ -31,8 +31,10 @@ app.use(cors({
   origin: [
     'http://localhost:8080', 
     'http://localhost:8081',
+    'http://localhost:5173',
     'https://legaltrack.vercel.app',
-    'https://*.vercel.app'
+    'https://legal-track-nine.vercel.app',
+    /\.vercel\.app$/
   ],
   credentials: true
 }));
