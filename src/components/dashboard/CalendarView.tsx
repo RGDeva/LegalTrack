@@ -309,7 +309,7 @@ export function CalendarView() {
         <CardContent>
           <div className="w-full rounded-lg overflow-hidden border" style={{ height: '600px' }}>
             <iframe 
-              src="https://calendar.google.com/calendar/appointments/schedules/AcZssZ3NEJ7EuoupdSKiKK9lIYok47hV5nFl1fZWrQzCtbOeOqK-yoxrZF14eY7tEvm9LrFsL6pjJDvM?gv=true" 
+              src="https://calendar.google.com/calendar/appointments/schedules/AcZssZ2wZzlSEo_6ZOWb2PiDk2V40PrHAgf9Fo5ekG1rzA8mVtHQ5s_4G2s2UlL5Hew_boZrA1_drRnA?gv=true" 
               style={{ border: 0, width: '100%', height: '600px' }} 
               title="Google Calendar Appointments"
               loading="lazy"
