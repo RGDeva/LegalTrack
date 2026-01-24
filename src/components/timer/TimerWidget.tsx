@@ -1,87 +1,126 @@
-import { useState, useEffect, useRef } from "react";
-import { Clock, Play, Pause, X, Plus, ChevronDown, Save } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Clock, Play, Pause, Plus, X, Save, ChevronDown } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
+import { API_URL } from "@/lib/api-url";
 
 interface Timer {
   id: string;
   caseId: string;
   caseName: string;
+  billingCodeId: string;
   description: string;
   startTime: number;
   elapsedTime: number;
   isRunning: boolean;
 }
 
+interface Case {
+  id: string;
+  caseNumber: string;
+  title: string;
+  status: string;
+}
+
+interface BillingCode {
+  id: string;
+  code: string;
+  label: string;
+  active: boolean;
+}
+
 export function TimerWidget() {
-  const [timers, setTimers] = useState<Timer[]>(() => {
-    const saved = localStorage.getItem('timers');
-    return saved ? JSON.parse(saved) : [];
-  });
   const [isOpen, setIsOpen] = useState(false);
-  const intervalRef = useRef<NodeJS.Timeout>();
-  const { toast } = useToast();
+  const [timers, setTimers] = useState<Timer[]>([]);
+  const [cases, setCases] = useState<Case[]>([]);
+  const [billingCodes, setBillingCodes] = useState<BillingCode[]>([]);
 
+  // Fetch cases from API
   useEffect(() => {
-    localStorage.setItem('timers', JSON.stringify(timers));
-  }, [timers]);
-
-  useEffect(() => {
-    if (timers.some(t => t.isRunning)) {
-      intervalRef.current = setInterval(() => {
-        setTimers(prev => prev.map(timer => 
-          timer.isRunning 
-            ? { ...timer, elapsedTime: Date.now() - timer.startTime }
-            : timer
-        ));
-      }, 1000);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+    const fetchCases = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+        
+        const res = await fetch(`${API_URL}/cases`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          setCases(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch cases:', error);
       }
     };
-  }, [timers]);
+    
+    fetchCases();
+  }, []);
+
+  // Fetch billing codes from API
+  useEffect(() => {
+    const fetchBillingCodes = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+        
+        const res = await fetch(`${API_URL}/billing-codes`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          setBillingCodes(data.filter((bc: BillingCode) => bc.active));
+        }
+      } catch (error) {
+        console.error('Failed to fetch billing codes:', error);
+      }
+    };
+    
+    fetchBillingCodes();
+  }, []);
+
+  // Update elapsed time for running timers
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimers(prevTimers => 
+        prevTimers.map(timer => {
+          if (timer.isRunning) {
+            return {
+              ...timer,
+              elapsedTime: Date.now() - timer.startTime
+            };
+          }
+          return timer;
+        })
+      );
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const formatTime = (ms: number) => {
-    const seconds = Math.floor(ms / 1000);
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hours.toString().padStart(2, '0')}:${minutes
-      .toString()
-      .padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
   const addTimer = () => {
-    if (timers.length >= 5) return;
-    
     const newTimer: Timer = {
       id: Date.now().toString(),
       caseId: '',
       caseName: '',
+      billingCodeId: '',
       description: '',
       startTime: Date.now(),
       elapsedTime: 0,
@@ -98,10 +137,8 @@ export function TimerWidget() {
     setTimers(timers.map(timer => {
       if (timer.id === id) {
         if (timer.isRunning) {
-          // Pausing
           return { ...timer, isRunning: false };
         } else {
-          // Resuming
           return { 
             ...timer, 
             isRunning: true,
@@ -113,52 +150,46 @@ export function TimerWidget() {
     }));
   };
 
-  const saveTimer = (timer: Timer) => {
-    if (!timer.caseId || !timer.description || timer.elapsedTime === 0) {
-      toast({
-        title: "Cannot save timer",
-        description: "Please select a case, add a description, and log some time.",
-        variant: "destructive",
-      });
+  const saveTimer = async (timer: Timer) => {
+    if (!timer.caseId || timer.elapsedTime === 0) {
+      toast.error("Please select a case and log some time.");
       return;
     }
 
-    // Calculate duration in 6-minute increments
-    const seconds = Math.floor(timer.elapsedTime / 1000);
-    const minutes = seconds / 60;
-    const increments = Math.ceil(minutes / 6);
-    
-    // Create time entry
-    const timeEntry = {
-      id: Date.now().toString(),
-      caseId: timer.caseId,
-      caseNumber: [].find(c => c.id === timer.caseId)?.caseNumber || '',
-      clientName: [].find(c => c.id === timer.caseId)?.clientName || '',
-      date: new Date().toISOString().split('T')[0],
-      startTime: new Date(timer.startTime).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
-      endTime: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
-      duration: increments,
-      description: timer.description,
-      billable: true,
-      billed: false,
-      rate: [].find(c => c.id === timer.caseId)?.hourlyRate || 250,
-      amount: increments * (([].find(c => c.id === timer.caseId)?.hourlyRate || 250) / 10),
-      attorney: 'Current User',
-      billingCode: 'TIME',
-    };
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        toast.error('Please log in to save time entry');
+        return;
+      }
 
-    // Save to localStorage (in a real app, this would be an API call)
-    const existingEntries = JSON.parse(localStorage.getItem('timeEntries') || '[]');
-    existingEntries.push(timeEntry);
-    localStorage.setItem('timeEntries', JSON.stringify(existingEntries));
+      const durationMinutes = Math.ceil(timer.elapsedTime / 1000 / 60);
+      
+      const res = await fetch(`${API_URL}/time-entries/manual`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          matterId: timer.caseId,
+          billingCodeId: timer.billingCodeId || undefined,
+          description: timer.description,
+          durationMinutesRaw: durationMinutes
+        })
+      });
 
-    // Remove the timer
-    removeTimer(timer.id);
-
-    toast({
-      title: "Time entry saved",
-      description: `${increments * 6} minutes logged to ${timer.caseName}`,
-    });
+      if (res.ok) {
+        toast.success(`Time entry saved - ${formatTime(timer.elapsedTime)}`);
+        removeTimer(timer.id);
+      } else {
+        const error = await res.json();
+        toast.error(error.error || 'Failed to save time entry');
+      }
+    } catch (error) {
+      console.error('Save time entry error:', error);
+      toast.error('Failed to save time entry');
+    }
   };
 
   const updateTimer = (id: string, updates: Partial<Timer>) => {
@@ -182,7 +213,7 @@ export function TimerWidget() {
           )}
         >
           <Clock className="h-4 w-4" />
-          {activeTimerCount > 0 && (
+          {activeTimerCount > 0 ? (
             <>
               <span className="font-mono text-sm">
                 {formatTime(totalElapsed)}
@@ -191,6 +222,8 @@ export function TimerWidget() {
                 {activeTimerCount}
               </Badge>
             </>
+          ) : (
+            <span className="text-sm">Timer</span>
           )}
           <ChevronDown className="h-3 w-3 opacity-50" />
         </Button>
@@ -229,7 +262,7 @@ export function TimerWidget() {
                       <Select
                         value={timer.caseId}
                         onValueChange={(value) => {
-                          const selectedCase = [].find(c => c.id === value);
+                          const selectedCase = cases.find(c => c.id === value);
                           updateTimer(timer.id, { 
                             caseId: value,
                             caseName: selectedCase?.title || ''
@@ -240,9 +273,29 @@ export function TimerWidget() {
                           <SelectValue placeholder="Select case..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {[].map((case_) => (
-                            <SelectItem key={case_.id} value={case_.id}>
-                              {case_.caseNumber} - {case_.title}
+                          {cases.length === 0 ? (
+                            <SelectItem value="__none__" disabled>No cases available</SelectItem>
+                          ) : (
+                            cases.map((case_) => (
+                              <SelectItem key={case_.id} value={case_.id}>
+                                {case_.caseNumber} - {case_.title}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+
+                      <Select
+                        value={timer.billingCodeId}
+                        onValueChange={(value) => updateTimer(timer.id, { billingCodeId: value })}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Billing code..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {billingCodes.map((code) => (
+                            <SelectItem key={code.id} value={code.id}>
+                              {code.code} - {code.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -267,7 +320,10 @@ export function TimerWidget() {
                   </div>
                   
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-lg">
+                    <span className={cn(
+                      "font-mono text-lg",
+                      timer.isRunning && "text-primary"
+                    )}>
                       {formatTime(timer.elapsedTime)}
                     </span>
                     
@@ -276,7 +332,7 @@ export function TimerWidget() {
                         variant="outline"
                         size="sm"
                         onClick={() => saveTimer(timer)}
-                        disabled={!timer.caseId || !timer.description || timer.elapsedTime === 0}
+                        disabled={!timer.caseId || timer.elapsedTime === 0}
                         className="h-7 gap-1"
                       >
                         <Save className="h-3 w-3" />
@@ -287,7 +343,7 @@ export function TimerWidget() {
                         variant={timer.isRunning ? "secondary" : "default"}
                         size="sm"
                         onClick={() => toggleTimer(timer.id)}
-                        disabled={!timer.caseId || !timer.description}
+                        disabled={!timer.caseId}
                         className="h-7 gap-1"
                       >
                         {timer.isRunning ? (
