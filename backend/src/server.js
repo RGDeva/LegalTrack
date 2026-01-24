@@ -21,6 +21,8 @@ import timeEntriesRoutes from './routes/timeEntries.js';
 import billingCodesRoutes from './routes/billingCodes.js';
 import roleRatesRoutes from './routes/roleRates.js';
 import invoiceDocxRoutes from './routes/invoiceDocx.js';
+import googleDriveRoutes from './routes/googleDrive.js';
+import googleCalendarRoutes from './routes/googleCalendar.js';
 
 console.log('All routes imported successfully');
 
@@ -46,6 +48,8 @@ app.use('/api/time-entries', timeEntriesRoutes);
 app.use('/api/billing-codes', billingCodesRoutes);
 app.use('/api/role-rates', roleRatesRoutes);
 app.use('/api/invoices', invoiceDocxRoutes);
+app.use('/api/google-drive', googleDriveRoutes);
+app.use('/api/google-calendar', googleCalendarRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
