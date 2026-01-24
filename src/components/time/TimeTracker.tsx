@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -23,16 +22,23 @@ interface Case {
   status: string;
 }
 
+interface BillingCode {
+  id: string;
+  code: string;
+  label: string;
+  active: boolean;
+}
+
 export function TimeTracker() {
   const [isTracking, setIsTracking] = useState(false);
   const [selectedCase, setSelectedCase] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
+  const [selectedBillingCode, setSelectedBillingCode] = useState("");
   const [description, setDescription] = useState("");
   const [billable, setBillable] = useState(true);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [timerStartTime, setTimerStartTime] = useState<Date | null>(null);
   const [cases, setCases] = useState<Case[]>([]);
+  const [billingCodes, setBillingCodes] = useState<BillingCode[]>([]);
   const [runningTimerId, setRunningTimerId] = useState<string | null>(null);
 
   // Fetch cases from API
@@ -48,6 +54,7 @@ export function TimeTracker() {
         
         if (res.ok) {
           const data = await res.json();
+          console.log('Fetched cases:', data);
           setCases(data);
         }
       } catch (error) {
@@ -56,6 +63,29 @@ export function TimeTracker() {
     };
     
     fetchCases();
+  }, []);
+
+  // Fetch billing codes from API
+  useEffect(() => {
+    const fetchBillingCodes = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+        
+        const res = await fetch(`${API_URL}/billing-codes`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          setBillingCodes(data.filter((bc: BillingCode) => bc.active));
+        }
+      } catch (error) {
+        console.error('Failed to fetch billing codes:', error);
+      }
+    };
+    
+    fetchBillingCodes();
   }, []);
 
   // Elapsed time counter
@@ -83,32 +113,12 @@ export function TimeTracker() {
     return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const calculateDuration = (start: string, end: string) => {
-    if (!start || !end) return 0;
-    
-    const [startHour, startMin] = start.split(':').map(Number);
-    const [endHour, endMin] = end.split(':').map(Number);
-    
-    const startMinutes = startHour * 60 + startMin;
-    const endMinutes = endHour * 60 + endMin;
-    const diffMinutes = endMinutes - startMinutes;
-    
-    // Round up to nearest 6-minute increment
-    return Math.ceil(diffMinutes / 6);
-  };
-
-  const formatDuration = (increments: number) => {
-    const hours = Math.floor(increments / 10);
-    const remainingIncrements = increments % 10;
-    const minutes = remainingIncrements * 6;
-    
-    if (hours === 0) {
-      return `${minutes} minutes`;
-    }
-    return `${hours}h ${minutes}m (${increments} units)`;
-  };
-
   const handleStartTracking = async () => {
+    if (!selectedCase) {
+      toast.error('Please select a case first');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('authToken');
       if (!token) {
@@ -124,6 +134,7 @@ export function TimeTracker() {
         },
         body: JSON.stringify({
           matterId: selectedCase,
+          billingCodeId: selectedBillingCode || undefined,
           description: description || ''
         })
       });
@@ -131,10 +142,7 @@ export function TimeTracker() {
       if (res.ok) {
         const data = await res.json();
         setRunningTimerId(data.id);
-        const now = new Date();
-        const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-        setStartTime(timeString);
-        setTimerStartTime(now);
+        setTimerStartTime(new Date());
         setElapsedSeconds(0);
         setIsTracking(true);
         toast.success('Timer started');
@@ -152,9 +160,6 @@ export function TimeTracker() {
     try {
       const token = localStorage.getItem('authToken');
       if (!token || !runningTimerId) {
-        const now = new Date();
-        const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-        setEndTime(timeString);
         setIsTracking(false);
         return;
       }
@@ -168,12 +173,9 @@ export function TimeTracker() {
       });
 
       if (res.ok) {
-        const now = new Date();
-        const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-        setEndTime(timeString);
         setIsTracking(false);
         setTimerStartTime(null);
-        toast.success('Timer stopped');
+        toast.success(`Timer stopped - ${formatElapsedTime(elapsedSeconds)}`);
       } else {
         const error = await res.json();
         toast.error(error.error || 'Failed to stop timer');
@@ -185,6 +187,11 @@ export function TimeTracker() {
   };
 
   const handleSave = async () => {
+    if (!selectedCase) {
+      toast.error('Please select a case');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('authToken');
       if (!token) {
@@ -192,8 +199,8 @@ export function TimeTracker() {
         return;
       }
 
-      const durationMinutes = calculateDuration(startTime, endTime) * 6; // Convert increments to minutes
-
+      const durationMinutes = Math.ceil(elapsedSeconds / 60);
+      
       const res = await fetch(`${API_URL}/time-entries/manual`, {
         method: 'POST',
         headers: {
@@ -202,6 +209,7 @@ export function TimeTracker() {
         },
         body: JSON.stringify({
           matterId: selectedCase,
+          billingCodeId: selectedBillingCode || undefined,
           description: description,
           durationMinutesRaw: durationMinutes
         })
@@ -211,11 +219,11 @@ export function TimeTracker() {
         toast.success('Time entry saved');
         // Reset form
         setSelectedCase("");
-        setStartTime("");
-        setEndTime("");
+        setSelectedBillingCode("");
         setDescription("");
         setBillable(true);
         setRunningTimerId(null);
+        setElapsedSeconds(0);
       } else {
         const error = await res.json();
         toast.error(error.error || 'Failed to save time entry');
@@ -226,6 +234,9 @@ export function TimeTracker() {
     }
   };
 
+  // Get selected case name for display
+  const selectedCaseName = cases.find(c => c.id === selectedCase);
+
   return (
     <Card>
       <CardHeader>
@@ -235,6 +246,47 @@ export function TimeTracker() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Live Timer Display - Always Visible */}
+        <div className={`p-6 rounded-lg text-center border-2 ${isTracking ? 'bg-primary/10 border-primary animate-pulse' : 'bg-muted border-muted-foreground/20'}`}>
+          <p className="text-sm text-muted-foreground mb-2">
+            {isTracking ? '⏱️ Timer Running' : '⏱️ Timer Stopped'}
+          </p>
+          <p className={`text-5xl font-mono font-bold ${isTracking ? 'text-primary' : 'text-muted-foreground'}`}>
+            {formatElapsedTime(elapsedSeconds)}
+          </p>
+          {selectedCaseName && (
+            <p className="text-sm text-muted-foreground mt-2">
+              {selectedCaseName.caseNumber} - {selectedCaseName.title}
+            </p>
+          )}
+        </div>
+
+        {/* Timer Controls */}
+        <div className="flex justify-center gap-4">
+          {!isTracking ? (
+            <Button
+              onClick={handleStartTracking}
+              disabled={!selectedCase}
+              size="lg"
+              className="gap-2 px-8"
+            >
+              <Play className="h-5 w-5" />
+              Start Timer
+            </Button>
+          ) : (
+            <Button
+              onClick={handleStopTracking}
+              variant="destructive"
+              size="lg"
+              className="gap-2 px-8"
+            >
+              <Pause className="h-5 w-5" />
+              Stop Timer
+            </Button>
+          )}
+        </div>
+
+        {/* Case Selection */}
         <div className="space-y-2">
           <Label htmlFor="case">Select Case</Label>
           <Select value={selectedCase} onValueChange={setSelectedCase}>
@@ -242,73 +294,37 @@ export function TimeTracker() {
               <SelectValue placeholder="Choose a case" />
             </SelectTrigger>
             <SelectContent>
-              {cases.filter(c => c.status?.toLowerCase() === 'active').map((case_) => (
-                <SelectItem key={case_.id} value={case_.id}>
-                  {case_.caseNumber} - {case_.title}
-                </SelectItem>
-              ))}
-              {cases.filter(c => c.status?.toLowerCase() !== 'active').length > 0 && (
-                <>
-                  <SelectItem value="__divider__" disabled>── Other Cases ──</SelectItem>
-                  {cases.filter(c => c.status?.toLowerCase() !== 'active').map((case_) => (
-                    <SelectItem key={case_.id} value={case_.id}>
-                      {case_.caseNumber} - {case_.title}
-                    </SelectItem>
-                  ))}
-                </>
+              {cases.length === 0 ? (
+                <SelectItem value="__none__" disabled>No cases available</SelectItem>
+              ) : (
+                cases.map((case_) => (
+                  <SelectItem key={case_.id} value={case_.id}>
+                    {case_.caseNumber} - {case_.title}
+                  </SelectItem>
+                ))
               )}
             </SelectContent>
           </Select>
         </div>
 
-        {/* Live Elapsed Time Display */}
-        {isTracking && (
-          <div className="p-6 bg-primary/10 rounded-lg text-center border-2 border-primary">
-            <p className="text-sm text-muted-foreground mb-2">Timer Running</p>
-            <p className="text-4xl font-mono font-bold text-primary">
-              {formatElapsedTime(elapsedSeconds)}
-            </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Started at {startTime}
-            </p>
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="start-time">Start Time</Label>
-            <Input
-              id="start-time"
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              disabled={isTracking}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="end-time">End Time</Label>
-            <Input
-              id="end-time"
-              type="time"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-              disabled={isTracking}
-            />
-          </div>
+        {/* Billing Code Selection */}
+        <div className="space-y-2">
+          <Label htmlFor="billing-code">Billing Code</Label>
+          <Select value={selectedBillingCode} onValueChange={setSelectedBillingCode}>
+            <SelectTrigger id="billing-code">
+              <SelectValue placeholder="Select billing code" />
+            </SelectTrigger>
+            <SelectContent>
+              {billingCodes.map((code) => (
+                <SelectItem key={code.id} value={code.id}>
+                  {code.code} - {code.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        {startTime && endTime && !isTracking && (
-          <div className="p-4 bg-muted rounded-lg">
-            <p className="text-sm text-muted-foreground">Duration</p>
-            <p className="text-lg font-semibold">
-              {formatDuration(calculateDuration(startTime, endTime))}
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Billed in 6-minute increments
-            </p>
-          </div>
-        )}
-
+        {/* Description */}
         <div className="space-y-2">
           <Label htmlFor="description">Description</Label>
           <Textarea
@@ -316,10 +332,11 @@ export function TimeTracker() {
             placeholder="Describe the work performed..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            rows={4}
+            rows={3}
           />
         </div>
 
+        {/* Billable Toggle & Save */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Switch
@@ -329,36 +346,15 @@ export function TimeTracker() {
             />
             <Label htmlFor="billable">Billable</Label>
           </div>
-          <div className="flex gap-2">
-            {!isTracking ? (
-              <Button
-                onClick={handleStartTracking}
-                disabled={!selectedCase}
-                className="gap-2"
-              >
-                <Play className="h-4 w-4" />
-                Start Timer
-              </Button>
-            ) : (
-              <Button
-                onClick={handleStopTracking}
-                variant="destructive"
-                className="gap-2"
-              >
-                <Pause className="h-4 w-4" />
-                Stop Timer
-              </Button>
-            )}
-            <Button
-              onClick={handleSave}
-              disabled={!selectedCase || !startTime || !endTime || !description}
-              variant="gradient"
-              className="gap-2"
-            >
-              <Save className="h-4 w-4" />
-              Save Entry
-            </Button>
-          </div>
+          <Button
+            onClick={handleSave}
+            disabled={!selectedCase || elapsedSeconds === 0}
+            variant="default"
+            className="gap-2"
+          >
+            <Save className="h-4 w-4" />
+            Save Entry
+          </Button>
         </div>
       </CardContent>
     </Card>
