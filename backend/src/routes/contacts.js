@@ -16,7 +16,11 @@ router.get('/', verifyToken, async (req, res) => {
 
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { name, email, phone, mobile, organization, title, role, address, city, state, zip, category, notes, tags } = req.body;
+    const { 
+      name, email, phone, mobile, organization, title, role, 
+      address, city, state, zip, category, notes, tags,
+      crmStage, crmSource, crmValue, crmProbability, crmExpectedCloseDate
+    } = req.body;
     
     const contact = await prisma.contact.create({
       data: {
@@ -33,7 +37,13 @@ router.post('/', verifyToken, async (req, res) => {
         zip: zip || null,
         category: category || null,
         notes: notes || null,
-        tags: tags || []
+        tags: tags || [],
+        crmStage: crmStage || 'open',
+        crmSource: crmSource || null,
+        crmValue: crmValue ? parseFloat(crmValue) : null,
+        crmProbability: crmProbability ? parseInt(crmProbability) : null,
+        crmExpectedCloseDate: crmExpectedCloseDate ? new Date(crmExpectedCloseDate) : null,
+        crmLastActivityDate: new Date()
       }
     });
     res.status(201).json(contact);

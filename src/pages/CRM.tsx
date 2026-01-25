@@ -29,19 +29,25 @@ const CRM = () => {
       const data = await res.json();
       setContacts(data);
       
-      // Convert contacts to leads for CRM pipeline
+      // Convert contacts to leads for CRM pipeline using database CRM fields
       const contactLeads: Lead[] = data.map((contact: any) => ({
         id: contact.id,
-        name: contact.name,
-        email: contact.email,
-        phone: contact.phone || '',
-        company: contact.organization || '',
-        stage: 'new' as const,
-        value: 0,
-        source: 'contact',
-        assignedTo: '',
+        contactId: contact.id,
+        contact: {
+          id: contact.id,
+          name: contact.name,
+          email: contact.email,
+          phone: contact.phone || '',
+          organization: contact.organization || '',
+        },
+        crmStage: (contact.crmStage || 'open') as 'open' | 'contacted' | 'negotiation' | 'closed',
+        source: (contact.crmSource || 'other') as any,
+        value: contact.crmValue || 0,
+        probability: contact.crmProbability,
+        expectedCloseDate: contact.crmExpectedCloseDate,
         notes: contact.notes || '',
-        createdAt: contact.createdAt || new Date().toISOString()
+        createdDate: contact.createdAt || new Date().toISOString(),
+        lastActivityDate: contact.crmLastActivityDate
       }));
       
       setLeads(contactLeads);
@@ -53,12 +59,38 @@ const CRM = () => {
     }
   };
 
-  const handleLeadCreate = (newLead: Partial<Lead>) => {
-    setLeads([...leads, newLead as Lead]);
-    toast({
-      title: "Lead Created",
-      description: "New lead has been added successfully.",
-    });
+  const handleLeadCreate = async (newLead: Partial<Lead>) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      // Update the contact with CRM fields
+      const res = await fetch(`${API_URL}/contacts/${newLead.contactId}`, {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          crmStage: newLead.crmStage,
+          crmSource: newLead.source,
+          crmValue: newLead.value,
+          crmProbability: newLead.probability,
+          crmExpectedCloseDate: newLead.expectedCloseDate,
+          crmLastActivityDate: new Date().toISOString()
+        })
+      });
+      
+      if (res.ok) {
+        // Reload contacts to get updated data
+        await loadContacts();
+        toast({
+          title: "Lead Created",
+          description: "Lead has been added to the pipeline.",
+        });
+      }
+    } catch (error) {
+      console.error('Error creating lead:', error);
+      sonnerToast.error('Failed to create lead');
+    }
   };
 
   const handleLeadClick = (lead: Lead) => {
@@ -89,8 +121,30 @@ const CRM = () => {
 
       <ContactKanban 
         leads={leads} 
-        onLeadUpdate={(updated) => {
+        onLeadUpdate={async (updated) => {
           setLeads(updated);
+          // Find the lead that changed and persist to backend
+          const token = localStorage.getItem('authToken');
+          for (const lead of updated) {
+            const original = leads.find(l => l.id === lead.id);
+            if (original && original.crmStage !== lead.crmStage) {
+              try {
+                await fetch(`${API_URL}/contacts/${lead.id}`, {
+                  method: 'PUT',
+                  headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    crmStage: lead.crmStage,
+                    crmLastActivityDate: new Date().toISOString()
+                  })
+                });
+              } catch (error) {
+                console.error('Error updating lead stage:', error);
+              }
+            }
+          }
           toast({
             title: "Lead Updated",
             description: "Lead stage updated successfully.",

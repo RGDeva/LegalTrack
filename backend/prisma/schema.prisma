@@ -81,10 +81,19 @@ model Contact {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
+  // CRM fields
+  crmStage      String?   @default("open")
+  crmSource     String?
+  crmValue      Float?
+  crmProbability Int?
+  crmExpectedCloseDate DateTime?
+  crmLastActivityDate DateTime?
+  
   invoices      Invoice[]
   
   @@index([email])
   @@index([category])
+  @@index([crmStage])
 }
 
 model Invoice {
