@@ -21,6 +21,7 @@ import Calendar from "./pages/Calendar";
 import Admin from "./pages/Admin";
 import BillingCodes from "./pages/BillingCodes";
 import Settings from "./pages/Settings";
+import NotificationLogs from "./pages/NotificationLogs";
 import SignIn from "./pages/SignIn";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -70,6 +71,7 @@ function App() {
                 <Route path="/admin" element={<ProtectedRoute><Layout><Admin /></Layout></ProtectedRoute>} />
                 <Route path="/billing-codes" element={<ProtectedRoute><Layout><BillingCodes /></Layout></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><Layout><Settings /></Layout></ProtectedRoute>} />
+                <Route path="/notifications" element={<ProtectedRoute><Layout><NotificationLogs /></Layout></ProtectedRoute>} />
                 
                 {/* 404 */}
                 <Route path="*" element={<NotFound />} />
