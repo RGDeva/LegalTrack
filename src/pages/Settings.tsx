@@ -291,7 +291,7 @@ const Settings = () => {
                   <RoleRateEditor
                     key={rr.id}
                     role={rr.role}
-                    currentRateCents={rr.hourlyRateCents}
+                    currentRateCents={rr.rateCents}
                   />
                 ))}
                 {roleRates.length === 0 && (
