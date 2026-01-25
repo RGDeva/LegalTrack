@@ -18,8 +18,7 @@ console.log('GOOGLE_DRIVE_FOLDER_ID exists:', !!process.env.GOOGLE_DRIVE_FOLDER_
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
-  'https://praxis-plus.vercel.app',
-  'https://legaltrack.vercel.app',
+  'https://legal-track-nine.vercel.app',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
