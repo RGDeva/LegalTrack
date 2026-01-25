@@ -6,13 +6,14 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-console.log('Starting LegalTrack API v2.3...');
+console.log('Starting LegalTrack API v2.4...');
 console.log('NODE_ENV:', process.env.NODE_ENV);
 console.log('PORT:', process.env.PORT);
 console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
 console.log('GOOGLE_SERVICE_ACCOUNT_EMAIL exists:', !!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL);
 console.log('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY exists:', !!process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY);
 console.log('GOOGLE_DRIVE_FOLDER_ID exists:', !!process.env.GOOGLE_DRIVE_FOLDER_ID);
+console.log('RESEND_API_KEY exists:', !!process.env.RESEND_API_KEY);
 
 // Allowed origins for CORS
 const allowedOrigins = [
@@ -151,6 +152,29 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message });
 });
 
+// Import and start cron jobs
+import { startCronJobs, stopCronJobs } from './services/cronService.js';
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 LegalTrack API running on port ${PORT}`);
+  
+  // Start automated cron jobs for notifications
+  if (process.env.NODE_ENV === 'production' || process.env.ENABLE_CRON === 'true') {
+    startCronJobs();
+  } else {
+    console.log('⚠️  Cron jobs disabled (set ENABLE_CRON=true to enable in development)');
+  }
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully...');
+  stopCronJobs();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully...');
+  stopCronJobs();
+  process.exit(0);
 });
