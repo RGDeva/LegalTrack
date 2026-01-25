@@ -2,23 +2,21 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy backend package files
-COPY backend/package*.json ./
+# Copy backend package files first
+COPY backend/package.json backend/package-lock.json ./
 
-# Install dependencies
-RUN npm install
-
-# Copy backend prisma schema
+# Copy prisma schema BEFORE npm install (needed for postinstall)
 COPY backend/prisma ./prisma/
 
-# Generate Prisma client
-RUN npx prisma generate
+# Install dependencies (this runs prisma generate via postinstall)
+RUN npm ci
 
 # Copy backend source code
-COPY backend/ .
+COPY backend/src ./src/
+COPY backend/templates ./templates/
 
-# Expose port (Render uses 10000 by default)
-EXPOSE 10000
+# Railway uses PORT env variable
+EXPOSE 8080
 
 # Start the server
 CMD ["node", "src/server.js"]
