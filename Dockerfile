@@ -21,5 +21,5 @@ COPY backend/templates ./templates/
 # Railway uses PORT env variable
 EXPOSE 8080
 
-# Run migrations and start server
-CMD npx prisma migrate deploy && node src/server.js
+# Push schema changes and start server (db push for schemaless migrations)
+CMD npx prisma db push --accept-data-loss && node src/server.js
