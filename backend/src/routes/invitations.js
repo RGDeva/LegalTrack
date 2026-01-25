@@ -11,16 +11,19 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // POST invite user (Admin only)
 router.post('/invite', verifyToken, verifyAdmin, async (req, res) => {
   try {
+    console.log('Invite request body:', req.body);
     const { email, name, role } = req.body;
 
     if (!email || !name || !role) {
+      console.log('Missing fields - email:', !!email, 'name:', !!name, 'role:', !!role);
       return res.status(400).json({ error: 'Email, name, and role are required' });
     }
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      return res.status(400).json({ error: 'User with this email already exists' });
+      console.log('User already exists:', email);
+      return res.status(400).json({ error: `User with email ${email} already exists` });
     }
 
     // Generate invite token
