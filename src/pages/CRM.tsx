@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { ContactKanban } from "@/components/contacts/ContactKanban";
 import { LeadDialog } from "@/components/crm/LeadDialog";
 import { LeadDetails } from "@/components/crm/LeadDetails";
+import { KanbanSkeleton } from "@/components/LoadingSkeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Lead, Contact } from "@/types";
 import { API_URL } from "@/lib/api-url";
@@ -139,10 +140,13 @@ const CRM = () => {
   if (loading) {
     return (
       <div className="p-6 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">CRM Pipeline</h1>
-          <p className="text-muted-foreground">Loading contacts...</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">CRM Pipeline</h1>
+            <p className="text-muted-foreground">Loading pipeline...</p>
+          </div>
         </div>
+        <KanbanSkeleton />
       </div>
     );
   }

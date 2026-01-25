@@ -9,6 +9,7 @@ import { Eye, Search, Filter } from "lucide-react";
 import { Case } from "@/types";
 import { EditCaseDialog } from "./EditCaseDialog";
 import { DeleteCaseDialog } from "./DeleteCaseDialog";
+import { TableSkeleton } from "@/components/LoadingSkeleton";
 import { toast } from "sonner";
 import { API_URL } from '@/lib/api-url';
 export function CaseList() {
@@ -69,9 +70,7 @@ export function CaseList() {
     return <Badge className={variants[priority]}>{priority}</Badge>;
   };
   if (loading) {
-    return <div className="flex items-center justify-center p-8">
-      <p className="text-muted-foreground">Loading cases...</p>
-    </div>;
+    return <TableSkeleton rows={8} />;
   }
 
   return <div className="space-y-4">
