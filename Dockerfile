@@ -21,5 +21,5 @@ COPY backend/templates ./templates/
 # Railway uses PORT env variable
 EXPOSE 8080
 
-# Start the server
-CMD ["node", "src/server.js"]
+# Run migrations and start server
+CMD npx prisma migrate deploy && node src/server.js
