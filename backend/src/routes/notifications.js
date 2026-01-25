@@ -1,6 +1,7 @@
 import express from 'express';
 import { runScheduledNotifications } from '../services/notificationService.js';
 import { getCronJobStatus, triggerDailyNotifications } from '../services/cronService.js';
+import { getAllNotifications, getNotificationStats } from '../services/notificationLogger.js';
 import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -28,6 +29,38 @@ router.get('/cron-status', authenticateToken, requireAdmin, (req, res) => {
   } catch (error) {
     console.error('Error getting cron status:', error);
     res.status(500).json({ error: 'Failed to get cron status' });
+  }
+});
+
+// Get all notification logs (admin only)
+router.get('/logs', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 100;
+    const offset = parseInt(req.query.offset) || 0;
+    const filters = {
+      type: req.query.type,
+      status: req.query.status,
+      startDate: req.query.startDate,
+      endDate: req.query.endDate
+    };
+
+    const result = await getAllNotifications(filters, limit, offset);
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching notification logs:', error);
+    res.status(500).json({ error: 'Failed to fetch logs' });
+  }
+});
+
+// Get notification statistics (admin only)
+router.get('/stats', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+    const stats = await getNotificationStats(days);
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching notification stats:', error);
+    res.status(500).json({ error: 'Failed to fetch stats' });
   }
 });
 

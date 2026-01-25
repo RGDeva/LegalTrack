@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { logNotification, logFailedNotification } from './notificationLogger.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -93,13 +94,16 @@ export const sendPasswordResetEmail = async (email, resetToken, userName) => {
 
     if (error) {
       console.error('Resend error:', error);
+      await logFailedNotification('password_reset', email, userName, 'Reset Your LegalTrack Password', error);
       throw new Error('Failed to send email');
     }
 
     console.log('Password reset email sent:', data);
+    await logNotification('password_reset', email, userName, 'Reset Your LegalTrack Password', { resetToken });
     return data;
   } catch (error) {
     console.error('Email service error:', error);
+    await logFailedNotification('password_reset', email, userName, 'Reset Your LegalTrack Password', error);
     throw error;
   }
 };
@@ -197,12 +201,15 @@ export const sendInvoiceReminderEmail = async (email, clientName, invoiceNumber,
 
     if (error) {
       console.error('Resend error:', error);
+      await logFailedNotification(isOverdue ? 'invoice_overdue' : 'invoice_upcoming', email, clientName, `Invoice ${isOverdue ? 'Overdue' : 'Due Soon'} - ${invoiceNumber}`, error);
       throw new Error('Failed to send email');
     }
 
+    await logNotification(isOverdue ? 'invoice_overdue' : 'invoice_upcoming', email, clientName, `Invoice ${isOverdue ? 'Overdue' : 'Due Soon'} - ${invoiceNumber}`, { invoiceNumber, amount, dueDate });
     return data;
   } catch (error) {
     console.error('Email service error:', error);
+    await logFailedNotification(isOverdue ? 'invoice_overdue' : 'invoice_upcoming', email, clientName, `Invoice ${isOverdue ? 'Overdue' : 'Due Soon'} - ${invoiceNumber}`, error);
     throw error;
   }
 };
@@ -295,12 +302,15 @@ export const sendDeadlineAlertEmail = async (email, userName, taskTitle, dueDate
 
     if (error) {
       console.error('Resend error:', error);
+      await logFailedNotification('deadline_alert', email, userName, `Deadline Alert: ${taskTitle}`, error);
       throw new Error('Failed to send email');
     }
 
+    await logNotification('deadline_alert', email, userName, `Deadline Alert: ${taskTitle}`, { taskTitle, dueDate, caseNumber, priority });
     return data;
   } catch (error) {
     console.error('Email service error:', error);
+    await logFailedNotification('deadline_alert', email, userName, `Deadline Alert: ${taskTitle}`, error);
     throw error;
   }
 };
@@ -395,12 +405,15 @@ export const sendTaskAssignmentEmail = async (email, userName, taskTitle, taskDe
 
     if (error) {
       console.error('Resend error:', error);
+      await logFailedNotification('task_assignment', email, userName, `New Task Assigned: ${taskTitle}`, error);
       throw new Error('Failed to send email');
     }
 
+    await logNotification('task_assignment', email, userName, `New Task Assigned: ${taskTitle}`, { taskTitle, dueDate, priority, caseNumber, assignedBy });
     return data;
   } catch (error) {
     console.error('Email service error:', error);
+    await logFailedNotification('task_assignment', email, userName, `New Task Assigned: ${taskTitle}`, error);
     throw error;
   }
 };
@@ -486,13 +499,16 @@ export const sendWelcomeEmail = async (email, userName) => {
 
     if (error) {
       console.error('Resend error:', error);
+      await logFailedNotification('welcome', email, userName, 'Welcome to LegalTrack', error);
       throw new Error('Failed to send email');
     }
 
     console.log('Welcome email sent:', data);
+    await logNotification('welcome', email, userName, 'Welcome to LegalTrack');
     return data;
   } catch (error) {
     console.error('Email service error:', error);
+    await logFailedNotification('welcome', email, userName, 'Welcome to LegalTrack', error);
     throw error;
   }
 };

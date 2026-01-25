@@ -29,11 +29,18 @@ model User {
   resetToken    String?   @unique
   resetTokenExpiry DateTime?
   
+  // Email notification preferences
+  emailNotifications Boolean @default(true)
+  notifyInvoices     Boolean @default(true)
+  notifyDeadlines    Boolean @default(true)
+  notifyTasks        Boolean @default(true)
+  
   timeEntries   TimeEntry[]
   documents     Document[]
   assignedTasks Task[]        @relation("AssignedTasks")
   createdTasks  Task[]        @relation("CreatedTasks")
   taskComments  TaskComment[]
+  notificationLogs NotificationLog[]
 }
 
 model Case {
@@ -230,7 +237,25 @@ model BillingCode {
 model RoleRate {
   id              String    @id @default(cuid())
   role            String    @unique
-  rateCents       Int
+  hourlyRate      Float
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+}
+
+model NotificationLog {
+  id              String    @id @default(cuid())
+  userId          String?
+  user            User?     @relation(fields: [userId], references: [id])
+  recipientEmail  String
+  recipientName   String?
+  type            String    // 'invoice_overdue', 'invoice_upcoming', 'deadline_alert', 'task_assignment', 'password_reset', 'welcome'
+  subject         String
+  status          String    @default("sent") // 'sent', 'failed', 'bounced'
+  metadata        Json?     // Additional data (invoice ID, task ID, etc.)
+  sentAt          DateTime  @default(now())
+  
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([sentAt])
 }
