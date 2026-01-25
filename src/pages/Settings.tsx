@@ -16,7 +16,7 @@ import { API_URL } from '@/lib/api-url';
 interface RoleRate {
   id: string;
   role: string;
-  hourlyRateCents: number;
+  rateCents: number;
 }
 
 interface NotificationPreferences {
@@ -111,7 +111,7 @@ const Settings = () => {
         },
         body: JSON.stringify({
           role,
-          hourlyRateCents: Math.round(rateDollars * 100)
+          rateCents: Math.round(rateDollars * 100)
         })
       });
 
