@@ -4,10 +4,13 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-console.log('Starting LegalTrack API v2.1...');
+console.log('Starting LegalTrack API v2.2...');
 console.log('NODE_ENV:', process.env.NODE_ENV);
 console.log('PORT:', process.env.PORT);
 console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+console.log('GOOGLE_SERVICE_ACCOUNT_EMAIL exists:', !!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL);
+console.log('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY exists:', !!process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY);
+console.log('GOOGLE_DRIVE_FOLDER_ID exists:', !!process.env.GOOGLE_DRIVE_FOLDER_ID);
 
 import authRoutes from './routes/auth.js';
 import caseRoutes from './routes/cases.js';
@@ -21,10 +24,28 @@ import timeEntriesRoutes from './routes/timeEntries.js';
 import billingCodesRoutes from './routes/billingCodes.js';
 import roleRatesRoutes from './routes/roleRates.js';
 import invoiceDocxRoutes from './routes/invoiceDocx.js';
-import googleDriveRoutes from './routes/googleDrive.js';
-import googleCalendarRoutes from './routes/googleCalendar.js';
 
-console.log('All routes imported successfully');
+// Conditionally import Google routes to prevent startup failures
+let googleDriveRoutes = null;
+let googleCalendarRoutes = null;
+
+try {
+  const driveModule = await import('./routes/googleDrive.js');
+  googleDriveRoutes = driveModule.default;
+  console.log('Google Drive routes imported successfully');
+} catch (error) {
+  console.error('Failed to import Google Drive routes:', error.message);
+}
+
+try {
+  const calendarModule = await import('./routes/googleCalendar.js');
+  googleCalendarRoutes = calendarModule.default;
+  console.log('Google Calendar routes imported successfully');
+} catch (error) {
+  console.error('Failed to import Google Calendar routes:', error.message);
+}
+
+console.log('All core routes imported successfully');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -48,8 +69,14 @@ app.use('/api/time-entries', timeEntriesRoutes);
 app.use('/api/billing-codes', billingCodesRoutes);
 app.use('/api/role-rates', roleRatesRoutes);
 app.use('/api/invoices', invoiceDocxRoutes);
-app.use('/api/google-drive', googleDriveRoutes);
-app.use('/api/google-calendar', googleCalendarRoutes);
+if (googleDriveRoutes) {
+  app.use('/api/google-drive', googleDriveRoutes);
+  console.log('Google Drive routes registered');
+}
+if (googleCalendarRoutes) {
+  app.use('/api/google-calendar', googleCalendarRoutes);
+  console.log('Google Calendar routes registered');
+}
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
