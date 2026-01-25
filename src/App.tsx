@@ -25,6 +25,7 @@ import NotificationLogs from "./pages/NotificationLogs";
 import SignIn from "./pages/SignIn";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import AcceptInvite from "./pages/AcceptInvite";
 import NotFound from "./pages/NotFound";
 import { LoginDialog } from "./components/auth/LoginDialog";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
@@ -55,6 +56,7 @@ function App() {
                 <Route path="/signin" element={<SignIn />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/accept-invite" element={<AcceptInvite />} />
                 
                 {/* Protected Routes */}
                 <Route path="/" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />

@@ -31,10 +31,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Users, Trash2, Plus, Shield, Database, FileText, Briefcase, Clock } from "lucide-react";
+import { Users, Trash2, Plus, Shield, Database, FileText, Briefcase, Clock, Mail, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { InviteUserDialog } from "@/components/admin/InviteUserDialog";
+import { API_URL } from "@/lib/api-url";
 
 export default function Admin() {
   const { user } = useAuth();
@@ -203,13 +205,15 @@ export default function Admin() {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>User Management</CardTitle>
-            <Dialog open={addUserOpen} onOpenChange={setAddUserOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add User
-                </Button>
-              </DialogTrigger>
+            <div className="flex gap-2">
+              <InviteUserDialog onInviteSent={loadUsers} />
+              <Dialog open={addUserOpen} onOpenChange={setAddUserOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add User Directly
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Create New User</DialogTitle>

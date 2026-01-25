@@ -63,6 +63,7 @@ import roleRatesRoutes from './routes/roleRates.js';
 import invoiceDocxRoutes from './routes/invoiceDocx.js';
 import notificationRoutes from './routes/notifications.js';
 import userSettingsRoutes from './routes/userSettings.js';
+import invitationRoutes from './routes/invitations.js';
 
 // Conditionally import Google routes to prevent startup failures
 let googleDriveRoutes = null;
@@ -144,6 +145,9 @@ if (googleCalendarRoutes) {
   app.use('/api/google-calendar', googleCalendarRoutes);
   console.log('Google Calendar routes registered');
 }
+
+// Invitation routes
+app.use('/api/invitations', invitationRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

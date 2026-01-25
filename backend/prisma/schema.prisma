@@ -29,6 +29,11 @@ model User {
   resetToken    String?   @unique
   resetTokenExpiry DateTime?
   
+  // Invitation fields
+  inviteToken       String?   @unique
+  inviteTokenExpiry DateTime?
+  invitedById       String?
+  
   // Email notification preferences
   emailNotifications Boolean @default(true)
   notifyInvoices     Boolean @default(true)
