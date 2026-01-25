@@ -214,7 +214,7 @@ export default function Admin() {
                     Add User Directly
                   </Button>
                 </DialogTrigger>
-              <DialogContent>
+                <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Create New User</DialogTitle>
                   <DialogDescription>
@@ -310,6 +310,7 @@ export default function Admin() {
                 </form>
               </DialogContent>
             </Dialog>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
