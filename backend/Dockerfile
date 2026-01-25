@@ -6,7 +6,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install
+RUN npm install --production=false
 
 # Copy prisma schema
 COPY prisma ./prisma/
@@ -17,8 +17,9 @@ RUN npx prisma generate
 # Copy source code
 COPY . .
 
-# Expose port
-EXPOSE 10000
+# Railway uses PORT env variable
+ENV PORT=8080
+EXPOSE 8080
 
 # Start the server
 CMD ["node", "src/server.js"]
