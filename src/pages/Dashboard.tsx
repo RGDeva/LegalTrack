@@ -82,21 +82,27 @@ const Dashboard = () => {
       
       const monthlyBillableHours = timeEntries
         .filter((entry: any) => {
+          if (!entry.createdAt) return false;
           const entryDate = new Date(entry.createdAt);
-          return entryDate.getMonth() === currentMonth && entryDate.getFullYear() === currentYear;
+          return entryDate.getMonth() === currentMonth && 
+                 entryDate.getFullYear() === currentYear &&
+                 entry.durationMinutesBilled > 0;
         })
         .reduce((total: number, entry: any) => {
-          const minutes = entry.durationMinutesBilled || entry.billableMinutes || 0;
+          const minutes = entry.durationMinutesBilled || 0;
           return total + (minutes / 60);
         }, 0);
 
-      // Calculate amount ready to invoice (unbilled time entries)
+      // Calculate amount ready to invoice (unbilled time entries with billed minutes)
       const amountReadyToInvoice = timeEntries
-        .filter((entry: any) => !entry.invoiced && !entry.invoiceId)
+        .filter((entry: any) => 
+          !entry.invoiceId && 
+          entry.durationMinutesBilled > 0 &&
+          entry.amountCents > 0
+        )
         .reduce((total: number, entry: any) => {
-          const hours = (entry.durationMinutesBilled || entry.billableMinutes || 0) / 60;
-          const rate = entry.effectiveRate || entry.hourlyRate || 0;
-          return total + (hours * rate);
+          const amountDollars = (entry.amountCents || 0) / 100;
+          return total + amountDollars;
         }, 0);
 
       // Calculate pending invoices (unpaid)
@@ -104,13 +110,10 @@ const Dashboard = () => {
         .filter((inv: any) => inv.status === 'Pending' || inv.status === 'Sent' || inv.status === 'Overdue')
         .reduce((total: number, inv: any) => total + (inv.amount || inv.total || 0), 0);
 
-      // Count active timers (entries created in last 24 hours or with running status)
-      const nowTimestamp = Date.now();
-      const activeTimers = timeEntries.filter((entry: any) => {
-        if (entry.status === 'running') return true;
-        const entryTime = new Date(entry.createdAt).getTime();
-        return (nowTimestamp - entryTime) < 24 * 60 * 60 * 1000;
-      }).length;
+      // Count active timers (entries with startedAt but no endedAt)
+      const activeTimers = timeEntries.filter((entry: any) => 
+        entry.startedAt && !entry.endedAt
+      ).length;
 
       setStats({
         activeCases,

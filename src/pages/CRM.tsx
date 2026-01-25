@@ -62,6 +62,12 @@ const CRM = () => {
   const handleLeadCreate = async (newLead: Partial<Lead>) => {
     try {
       const token = localStorage.getItem('authToken');
+      
+      if (!newLead.contactId) {
+        sonnerToast.error('Please select a contact');
+        return;
+      }
+      
       // Update the contact with CRM fields
       const res = await fetch(`${API_URL}/contacts/${newLead.contactId}`, {
         method: 'PUT',
@@ -70,22 +76,54 @@ const CRM = () => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          crmStage: newLead.crmStage,
-          crmSource: newLead.source,
-          crmValue: newLead.value,
-          crmProbability: newLead.probability,
-          crmExpectedCloseDate: newLead.expectedCloseDate,
+          crmStage: newLead.crmStage || 'open',
+          crmSource: newLead.source || 'other',
+          crmValue: newLead.value || 0,
+          crmProbability: newLead.probability || 50,
+          crmExpectedCloseDate: newLead.expectedCloseDate || null,
           crmLastActivityDate: new Date().toISOString()
         })
       });
       
       if (res.ok) {
-        // Reload contacts to get updated data
-        await loadContacts();
-        toast({
-          title: "Lead Created",
-          description: "Lead has been added to the pipeline.",
+        const updatedContact = await res.json();
+        
+        // Immediately update local state with the new lead
+        const newLeadData: Lead = {
+          id: updatedContact.id,
+          contactId: updatedContact.id,
+          contact: {
+            id: updatedContact.id,
+            name: updatedContact.name,
+            email: updatedContact.email,
+            phone: updatedContact.phone || '',
+            organization: updatedContact.organization || '',
+          },
+          crmStage: updatedContact.crmStage as any,
+          source: updatedContact.crmSource as any,
+          value: updatedContact.crmValue || 0,
+          probability: updatedContact.crmProbability,
+          expectedCloseDate: updatedContact.crmExpectedCloseDate,
+          notes: updatedContact.notes || '',
+          createdDate: updatedContact.createdAt || new Date().toISOString(),
+          lastActivityDate: updatedContact.crmLastActivityDate
+        };
+        
+        // Update leads state immediately
+        setLeads(prevLeads => {
+          const existingIndex = prevLeads.findIndex(l => l.id === newLeadData.id);
+          if (existingIndex >= 0) {
+            const updated = [...prevLeads];
+            updated[existingIndex] = newLeadData;
+            return updated;
+          }
+          return [...prevLeads, newLeadData];
         });
+        
+        sonnerToast.success('Lead added to pipeline');
+      } else {
+        const error = await res.json();
+        sonnerToast.error(error.error || 'Failed to create lead');
       }
     } catch (error) {
       console.error('Error creating lead:', error);
