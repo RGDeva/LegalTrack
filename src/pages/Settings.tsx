@@ -19,16 +19,30 @@ interface RoleRate {
   hourlyRateCents: number;
 }
 
+interface NotificationPreferences {
+  emailNotifications: boolean;
+  notifyInvoices: boolean;
+  notifyDeadlines: boolean;
+  notifyTasks: boolean;
+}
+
 const Settings = () => {
   const { user } = useAuth();
   const { theme, setTheme } = useTheme();
   const [roleRates, setRoleRates] = useState<RoleRate[]>([]);
   const [loading, setLoading] = useState(false);
+  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>({
+    emailNotifications: true,
+    notifyInvoices: true,
+    notifyDeadlines: true,
+    notifyTasks: true
+  });
 
   useEffect(() => {
     if (user?.role === 'Admin') {
       loadRoleRates();
     }
+    loadNotificationPreferences();
   }, [user]);
 
   const loadRoleRates = async () => {
@@ -42,6 +56,47 @@ const Settings = () => {
     } catch (error) {
       console.error('Error loading role rates:', error);
       toast.error('Failed to load role rates');
+    }
+  };
+
+  const loadNotificationPreferences = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${API_URL}/user/settings/notifications`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNotificationPrefs(data);
+      }
+    } catch (error) {
+      console.error('Error loading notification preferences:', error);
+    }
+  };
+
+  const updateNotificationPreference = async (key: keyof NotificationPreferences, value: boolean) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const newPrefs = { ...notificationPrefs, [key]: value };
+      
+      const res = await fetch(`${API_URL}/user/settings/notifications`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ [key]: value })
+      });
+
+      if (res.ok) {
+        setNotificationPrefs(newPrefs);
+        toast.success('Notification preferences updated');
+      } else {
+        toast.error('Failed to update preferences');
+      }
+    } catch (error) {
+      console.error('Error updating preferences:', error);
+      toast.error('Failed to update preferences');
     }
   };
 
@@ -360,55 +415,79 @@ const Settings = () => {
           <Card>
             <CardHeader>
               <CardTitle>Email Notifications</CardTitle>
-              <CardDescription>Choose what emails you receive</CardDescription>
+              <CardDescription>Choose what emails you receive from LegalTrack</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label>New Case Assignments</Label>
-                  <p className="text-sm text-muted-foreground">Get notified when assigned to a case</p>
+                  <Label>All Email Notifications</Label>
+                  <p className="text-sm text-muted-foreground">Master switch for all email notifications</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch 
+                  checked={notificationPrefs.emailNotifications}
+                  onCheckedChange={(checked) => updateNotificationPreference('emailNotifications', checked)}
+                />
               </div>
               <Separator />
               <div className="flex items-center justify-between">
                 <div>
-                  <Label>Invoice Updates</Label>
-                  <p className="text-sm text-muted-foreground">Notifications about invoice status</p>
+                  <Label>Invoice Reminders</Label>
+                  <p className="text-sm text-muted-foreground">Overdue and upcoming invoice notifications</p>
                 </div>
-                <Switch defaultChecked />
+                <Switch 
+                  checked={notificationPrefs.notifyInvoices}
+                  onCheckedChange={(checked) => updateNotificationPreference('notifyInvoices', checked)}
+                  disabled={!notificationPrefs.emailNotifications}
+                />
               </div>
               <Separator />
               <div className="flex items-center justify-between">
                 <div>
-                  <Label>Time Entry Reminders</Label>
-                  <p className="text-sm text-muted-foreground">Daily reminders to log time</p>
+                  <Label>Deadline Alerts</Label>
+                  <p className="text-sm text-muted-foreground">Upcoming task and hearing deadlines</p>
                 </div>
-                <Switch />
+                <Switch 
+                  checked={notificationPrefs.notifyDeadlines}
+                  onCheckedChange={(checked) => updateNotificationPreference('notifyDeadlines', checked)}
+                  disabled={!notificationPrefs.emailNotifications}
+                />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Task Assignments</Label>
+                  <p className="text-sm text-muted-foreground">Get notified when assigned to tasks</p>
+                </div>
+                <Switch 
+                  checked={notificationPrefs.notifyTasks}
+                  onCheckedChange={(checked) => updateNotificationPreference('notifyTasks', checked)}
+                  disabled={!notificationPrefs.emailNotifications}
+                />
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>In-App Notifications</CardTitle>
-              <CardDescription>Manage in-app notification preferences</CardDescription>
+              <CardTitle>Notification Schedule</CardTitle>
+              <CardDescription>When automated emails are sent</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Desktop Notifications</Label>
-                  <p className="text-sm text-muted-foreground">Show browser notifications</p>
-                </div>
-                <Switch />
+            <CardContent className="space-y-3">
+              <div className="text-sm">
+                <p className="font-medium mb-2">Daily Notifications (9:00 AM EST)</p>
+                <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                  <li>Overdue invoice reminders</li>
+                  <li>Invoices due within 3 days</li>
+                  <li>Tasks and hearings due within 7 days</li>
+                </ul>
               </div>
               <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Sound Alerts</Label>
-                  <p className="text-sm text-muted-foreground">Play sound for notifications</p>
-                </div>
-                <Switch />
+              <div className="text-sm">
+                <p className="font-medium mb-2">Real-Time Notifications</p>
+                <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                  <li>Task assignments (immediate)</li>
+                  <li>Password reset requests (immediate)</li>
+                </ul>
               </div>
             </CardContent>
           </Card>
