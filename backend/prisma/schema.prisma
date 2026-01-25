@@ -237,7 +237,7 @@ model BillingCode {
 model RoleRate {
   id              String    @id @default(cuid())
   role            String    @unique
-  hourlyRate      Float
+  rateCents       Int
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 }
