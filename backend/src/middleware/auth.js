@@ -25,3 +25,7 @@ export const verifyAdmin = (req, res, next) => {
   }
   next();
 };
+
+// Alias for consistency
+export const authenticateToken = verifyToken;
+export const requireAdmin = verifyAdmin;

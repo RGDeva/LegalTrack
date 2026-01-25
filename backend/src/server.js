@@ -60,6 +60,7 @@ import timeEntriesRoutes from './routes/timeEntries.js';
 import billingCodesRoutes from './routes/billingCodes.js';
 import roleRatesRoutes from './routes/roleRates.js';
 import invoiceDocxRoutes from './routes/invoiceDocx.js';
+import notificationRoutes from './routes/notifications.js';
 
 // Conditionally import Google routes to prevent startup failures
 let googleDriveRoutes = null;
@@ -131,6 +132,7 @@ app.use('/api/time-entries', timeEntriesRoutes);
 app.use('/api/billing-codes', billingCodesRoutes);
 app.use('/api/role-rates', roleRatesRoutes);
 app.use('/api/invoices', invoiceDocxRoutes);
+app.use('/api/notifications', notificationRoutes);
 if (googleDriveRoutes) {
   app.use('/api/google-drive', googleDriveRoutes);
   console.log('Google Drive routes registered');

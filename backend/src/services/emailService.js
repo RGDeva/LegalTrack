@@ -104,6 +104,307 @@ export const sendPasswordResetEmail = async (email, resetToken, userName) => {
   }
 };
 
+export const sendInvoiceReminderEmail = async (email, clientName, invoiceNumber, amount, dueDate, isOverdue = true) => {
+  try {
+    const formattedAmount = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+    const formattedDueDate = new Date(dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const daysOverdue = isOverdue ? Math.floor((new Date() - new Date(dueDate)) / (1000 * 60 * 60 * 24)) : null;
+
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: email,
+      subject: isOverdue ? `Overdue Invoice Reminder - ${invoiceNumber}` : `Invoice Due Soon - ${invoiceNumber}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Invoice Reminder</title>
+          </head>
+          <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+            <table role="presentation" style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td align="center" style="padding: 40px 0;">
+                  <table role="presentation" style="width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <tr>
+                      <td style="padding: 40px 40px 20px 40px; text-align: center; border-bottom: 1px solid #e5e5e5;">
+                        <h1 style="margin: 0; color: ${isOverdue ? '#dc2626' : '#1a1a1a'}; font-size: 24px; font-weight: 600;">
+                          ${isOverdue ? 'Invoice Overdue' : 'Invoice Due Soon'}
+                        </h1>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 40px;">
+                        <p style="margin: 0 0 20px 0; color: #4a4a4a; font-size: 16px; line-height: 1.5;">
+                          Dear ${clientName},
+                        </p>
+                        <p style="margin: 0 0 20px 0; color: #4a4a4a; font-size: 16px; line-height: 1.5;">
+                          ${isOverdue 
+                            ? `This is a reminder that invoice <strong>${invoiceNumber}</strong> is now ${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue.`
+                            : `This is a friendly reminder that invoice <strong>${invoiceNumber}</strong> is due soon.`
+                          }
+                        </p>
+                        <table role="presentation" style="width: 100%; margin: 30px 0; border: 1px solid #e5e5e5; border-radius: 6px;">
+                          <tr>
+                            <td style="padding: 20px; background-color: #f9f9f9;">
+                              <table role="presentation" style="width: 100%;">
+                                <tr>
+                                  <td style="padding: 8px 0; color: #6b6b6b; font-size: 14px;">Invoice Number:</td>
+                                  <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; font-weight: 600; text-align: right;">${invoiceNumber}</td>
+                                </tr>
+                                <tr>
+                                  <td style="padding: 8px 0; color: #6b6b6b; font-size: 14px;">Amount Due:</td>
+                                  <td style="padding: 8px 0; color: #1a1a1a; font-size: 18px; font-weight: 700; text-align: right;">${formattedAmount}</td>
+                                </tr>
+                                <tr>
+                                  <td style="padding: 8px 0; color: #6b6b6b; font-size: 14px;">Due Date:</td>
+                                  <td style="padding: 8px 0; color: ${isOverdue ? '#dc2626' : '#1a1a1a'}; font-size: 14px; font-weight: 600; text-align: right;">${formattedDueDate}</td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                        </table>
+                        <p style="margin: 20px 0; color: #4a4a4a; font-size: 14px; line-height: 1.5;">
+                          Please arrange payment at your earliest convenience. If you have already paid this invoice, please disregard this message.
+                        </p>
+                        <table role="presentation" style="margin: 30px 0;">
+                          <tr>
+                            <td style="border-radius: 6px; background-color: #2563eb;">
+                              <a href="${FRONTEND_URL}/invoices" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 6px;">
+                                View Invoice
+                              </a>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 30px 40px; background-color: #f9f9f9; border-top: 1px solid #e5e5e5; border-radius: 0 0 8px 8px;">
+                        <p style="margin: 0; color: #8a8a8a; font-size: 12px; line-height: 1.5; text-align: center;">
+                          © ${new Date().getFullYear()} LegalTrack. All rights reserved.
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </body>
+        </html>
+      `,
+    });
+
+    if (error) {
+      console.error('Resend error:', error);
+      throw new Error('Failed to send email');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Email service error:', error);
+    throw error;
+  }
+};
+
+export const sendDeadlineAlertEmail = async (email, userName, taskTitle, dueDate, caseNumber, priority) => {
+  try {
+    const formattedDueDate = new Date(dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const daysUntil = Math.ceil((new Date(dueDate) - new Date()) / (1000 * 60 * 60 * 24));
+    const priorityColor = priority === 'High' ? '#dc2626' : priority === 'Medium' ? '#f59e0b' : '#10b981';
+
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: email,
+      subject: `Deadline Alert: ${taskTitle}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Deadline Alert</title>
+          </head>
+          <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+            <table role="presentation" style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td align="center" style="padding: 40px 0;">
+                  <table role="presentation" style="width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <tr>
+                      <td style="padding: 40px 40px 20px 40px; text-align: center; border-bottom: 1px solid #e5e5e5;">
+                        <h1 style="margin: 0; color: #1a1a1a; font-size: 24px; font-weight: 600;">Upcoming Deadline</h1>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 40px;">
+                        <p style="margin: 0 0 20px 0; color: #4a4a4a; font-size: 16px; line-height: 1.5;">
+                          Hi ${userName},
+                        </p>
+                        <p style="margin: 0 0 20px 0; color: #4a4a4a; font-size: 16px; line-height: 1.5;">
+                          This is a reminder that you have an upcoming deadline in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}.
+                        </p>
+                        <table role="presentation" style="width: 100%; margin: 30px 0; border: 1px solid #e5e5e5; border-radius: 6px;">
+                          <tr>
+                            <td style="padding: 20px; background-color: #f9f9f9;">
+                              <h2 style="margin: 0 0 15px 0; color: #1a1a1a; font-size: 18px; font-weight: 600;">${taskTitle}</h2>
+                              <table role="presentation" style="width: 100%;">
+                                <tr>
+                                  <td style="padding: 8px 0; color: #6b6b6b; font-size: 14px;">Case Number:</td>
+                                  <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; font-weight: 600; text-align: right;">${caseNumber}</td>
+                                </tr>
+                                <tr>
+                                  <td style="padding: 8px 0; color: #6b6b6b; font-size: 14px;">Due Date:</td>
+                                  <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; font-weight: 600; text-align: right;">${formattedDueDate}</td>
+                                </tr>
+                                <tr>
+                                  <td style="padding: 8px 0; color: #6b6b6b; font-size: 14px;">Priority:</td>
+                                  <td style="padding: 8px 0; text-align: right;">
+                                    <span style="display: inline-block; padding: 4px 12px; background-color: ${priorityColor}; color: #ffffff; font-size: 12px; font-weight: 600; border-radius: 12px;">${priority}</span>
+                                  </td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                        </table>
+                        <table role="presentation" style="margin: 30px 0;">
+                          <tr>
+                            <td style="border-radius: 6px; background-color: #2563eb;">
+                              <a href="${FRONTEND_URL}/cases" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 6px;">
+                                View Details
+                              </a>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 30px 40px; background-color: #f9f9f9; border-top: 1px solid #e5e5e5; border-radius: 0 0 8px 8px;">
+                        <p style="margin: 0; color: #8a8a8a; font-size: 12px; line-height: 1.5; text-align: center;">
+                          © ${new Date().getFullYear()} LegalTrack. All rights reserved.
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </body>
+        </html>
+      `,
+    });
+
+    if (error) {
+      console.error('Resend error:', error);
+      throw new Error('Failed to send email');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Email service error:', error);
+    throw error;
+  }
+};
+
+export const sendTaskAssignmentEmail = async (email, userName, taskTitle, taskDescription, dueDate, priority, caseNumber, assignedBy) => {
+  try {
+    const formattedDueDate = dueDate ? new Date(dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'No due date';
+    const priorityColor = priority === 'High' ? '#dc2626' : priority === 'Medium' ? '#f59e0b' : '#10b981';
+
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: email,
+      subject: `New Task Assigned: ${taskTitle}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Task Assignment</title>
+          </head>
+          <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+            <table role="presentation" style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td align="center" style="padding: 40px 0;">
+                  <table role="presentation" style="width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <tr>
+                      <td style="padding: 40px 40px 20px 40px; text-align: center; border-bottom: 1px solid #e5e5e5;">
+                        <h1 style="margin: 0; color: #1a1a1a; font-size: 24px; font-weight: 600;">New Task Assigned</h1>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 40px;">
+                        <p style="margin: 0 0 20px 0; color: #4a4a4a; font-size: 16px; line-height: 1.5;">
+                          Hi ${userName},
+                        </p>
+                        <p style="margin: 0 0 20px 0; color: #4a4a4a; font-size: 16px; line-height: 1.5;">
+                          ${assignedBy || 'A team member'} has assigned you a new task.
+                        </p>
+                        <table role="presentation" style="width: 100%; margin: 30px 0; border: 1px solid #e5e5e5; border-radius: 6px;">
+                          <tr>
+                            <td style="padding: 20px; background-color: #f9f9f9;">
+                              <h2 style="margin: 0 0 15px 0; color: #1a1a1a; font-size: 18px; font-weight: 600;">${taskTitle}</h2>
+                              ${taskDescription ? `<p style="margin: 0 0 15px 0; color: #4a4a4a; font-size: 14px; line-height: 1.5;">${taskDescription}</p>` : ''}
+                              <table role="presentation" style="width: 100%;">
+                                ${caseNumber ? `
+                                <tr>
+                                  <td style="padding: 8px 0; color: #6b6b6b; font-size: 14px;">Case Number:</td>
+                                  <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; font-weight: 600; text-align: right;">${caseNumber}</td>
+                                </tr>
+                                ` : ''}
+                                <tr>
+                                  <td style="padding: 8px 0; color: #6b6b6b; font-size: 14px;">Due Date:</td>
+                                  <td style="padding: 8px 0; color: #1a1a1a; font-size: 14px; font-weight: 600; text-align: right;">${formattedDueDate}</td>
+                                </tr>
+                                <tr>
+                                  <td style="padding: 8px 0; color: #6b6b6b; font-size: 14px;">Priority:</td>
+                                  <td style="padding: 8px 0; text-align: right;">
+                                    <span style="display: inline-block; padding: 4px 12px; background-color: ${priorityColor}; color: #ffffff; font-size: 12px; font-weight: 600; border-radius: 12px;">${priority}</span>
+                                  </td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                        </table>
+                        <table role="presentation" style="margin: 30px 0;">
+                          <tr>
+                            <td style="border-radius: 6px; background-color: #2563eb;">
+                              <a href="${FRONTEND_URL}" target="_blank" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; border-radius: 6px;">
+                                View Task
+                              </a>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 30px 40px; background-color: #f9f9f9; border-top: 1px solid #e5e5e5; border-radius: 0 0 8px 8px;">
+                        <p style="margin: 0; color: #8a8a8a; font-size: 12px; line-height: 1.5; text-align: center;">
+                          © ${new Date().getFullYear()} LegalTrack. All rights reserved.
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </body>
+        </html>
+      `,
+    });
+
+    if (error) {
+      console.error('Resend error:', error);
+      throw new Error('Failed to send email');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Email service error:', error);
+    throw error;
+  }
+};
+
 export const sendWelcomeEmail = async (email, userName) => {
   try {
     const { data, error } = await resend.emails.send({
