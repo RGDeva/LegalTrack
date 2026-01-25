@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Briefcase, Users, Clock, DollarSign, FileText, Calendar, Timer } from "lucide-react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
@@ -7,41 +7,173 @@ import { CalendarView } from "@/components/dashboard/CalendarView";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
-import { TimeEntry } from "@/types";
-import { calculateEffectiveRate } from "@/lib/time-utils";
+import { API_URL } from "@/lib/api-url";
+
+interface DashboardStats {
+  activeCases: number;
+  totalClients: number;
+  monthlyBillableHours: number;
+  amountReadyToInvoice: number;
+  pendingInvoicesAmount: number;
+  activeTimers: number;
+}
+
+interface Deadline {
+  id: string;
+  title: string;
+  description: string;
+  date: Date;
+  type: 'hearing' | 'task' | 'deadline';
+}
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const activeCases = 0; // Will be loaded from API
-  const totalClients = 0; // Will be loaded from API
-  const unbilledHours = 0; // Will be calculated from time entries
-  const pendingInvoices = 0; // Will be loaded from API
+  const [stats, setStats] = useState<DashboardStats>({
+    activeCases: 0,
+    totalClients: 0,
+    monthlyBillableHours: 0,
+    amountReadyToInvoice: 0,
+    pendingInvoicesAmount: 0,
+    activeTimers: 0
+  });
+  const [deadlines, setDeadlines] = useState<Deadline[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // New metrics for time tracking
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-  
-  // Get time entries from localStorage
-  const timeEntriesJson = localStorage.getItem('timeEntries') || '[]';
-  const allTimeEntries: TimeEntry[] = JSON.parse(timeEntriesJson);
-  
-  // Calculate billable hours for current month
-  const monthlyBillableHours = allTimeEntries
-    .filter(entry => {
-      const entryDate = new Date(entry.createdAt);
-      return entryDate.getMonth() === currentMonth && entryDate.getFullYear() === currentYear;
-    })
-    .reduce((total, entry) => total + (entry.billableMinutes / 60), 0);
-  
-  // Calculate amount ready to invoice (unbilled time)
-  const amountReadyToInvoice = 0; // Will be calculated when we have user and billing code data
-  
-  // Count active timers (timers running in last 24 hours)
-  const activeTimers = allTimeEntries.filter(entry => {
-    const entryTime = new Date(entry.createdAt).getTime();
-    const now = Date.now();
-    return (now - entryTime) < 24 * 60 * 60 * 1000; // Last 24 hours
-  }).length;
+  useEffect(() => {
+    loadDashboardStats();
+  }, []);
+
+  const loadDashboardStats = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      const headers = { 'Authorization': `Bearer ${token}` };
+
+      // Fetch all data in parallel
+      const [casesRes, contactsRes, timeEntriesRes, invoicesRes] = await Promise.all([
+        fetch(`${API_URL}/cases`, { headers }),
+        fetch(`${API_URL}/contacts`, { headers }),
+        fetch(`${API_URL}/time-entries`, { headers }),
+        fetch(`${API_URL}/invoices`, { headers })
+      ]);
+
+      const cases = casesRes.ok ? await casesRes.json() : [];
+      const contacts = contactsRes.ok ? await contactsRes.json() : [];
+      const timeEntries = timeEntriesRes.ok ? await timeEntriesRes.json() : [];
+      const invoices = invoicesRes.ok ? await invoicesRes.json() : [];
+
+      // Calculate active cases (status is Active or In Progress)
+      const activeCases = cases.filter((c: any) => 
+        c.status === 'Active' || c.status === 'In Progress' || c.status === 'Open'
+      ).length;
+
+      // Total clients (contacts that are clients)
+      const totalClients = contacts.filter((c: any) => 
+        c.type === 'Client' || c.type === 'client'
+      ).length || contacts.length;
+
+      // Calculate billable hours for current month
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+      
+      const monthlyBillableHours = timeEntries
+        .filter((entry: any) => {
+          const entryDate = new Date(entry.createdAt);
+          return entryDate.getMonth() === currentMonth && entryDate.getFullYear() === currentYear;
+        })
+        .reduce((total: number, entry: any) => {
+          const minutes = entry.durationMinutesBilled || entry.billableMinutes || 0;
+          return total + (minutes / 60);
+        }, 0);
+
+      // Calculate amount ready to invoice (unbilled time entries)
+      const amountReadyToInvoice = timeEntries
+        .filter((entry: any) => !entry.invoiced && !entry.invoiceId)
+        .reduce((total: number, entry: any) => {
+          const hours = (entry.durationMinutesBilled || entry.billableMinutes || 0) / 60;
+          const rate = entry.effectiveRate || entry.hourlyRate || 0;
+          return total + (hours * rate);
+        }, 0);
+
+      // Calculate pending invoices (unpaid)
+      const pendingInvoicesAmount = invoices
+        .filter((inv: any) => inv.status === 'Pending' || inv.status === 'Sent' || inv.status === 'Overdue')
+        .reduce((total: number, inv: any) => total + (inv.amount || inv.total || 0), 0);
+
+      // Count active timers (entries created in last 24 hours or with running status)
+      const nowTimestamp = Date.now();
+      const activeTimers = timeEntries.filter((entry: any) => {
+        if (entry.status === 'running') return true;
+        const entryTime = new Date(entry.createdAt).getTime();
+        return (nowTimestamp - entryTime) < 24 * 60 * 60 * 1000;
+      }).length;
+
+      setStats({
+        activeCases,
+        totalClients,
+        monthlyBillableHours,
+        amountReadyToInvoice,
+        pendingInvoicesAmount,
+        activeTimers
+      });
+
+      // Extract upcoming deadlines from cases with nextHearing dates
+      const upcomingDeadlines: Deadline[] = [];
+      const nowDate = new Date();
+      
+      cases.forEach((c: any) => {
+        if (c.nextHearing) {
+          const hearingDate = new Date(c.nextHearing);
+          if (hearingDate.getTime() >= nowDate.getTime()) {
+            upcomingDeadlines.push({
+              id: `hearing-${c.id}`,
+              title: 'Court Hearing',
+              description: `${c.title}`,
+              date: hearingDate,
+              type: 'hearing'
+            });
+          }
+        }
+      });
+
+      // Also fetch tasks for deadlines
+      try {
+        const tasksRes = await fetch(`${API_URL}/tasks`, { headers });
+        if (tasksRes.ok) {
+          const tasks = await tasksRes.json();
+          tasks.forEach((task: any) => {
+            if (task.dueDate && task.status !== 'completed') {
+              const dueDate = new Date(task.dueDate);
+              if (dueDate.getTime() >= nowDate.getTime()) {
+                upcomingDeadlines.push({
+                  id: `task-${task.id}`,
+                  title: task.title || 'Task Due',
+                  description: task.description || task.caseName || '',
+                  date: dueDate,
+                  type: 'task'
+                });
+              }
+            }
+          });
+        }
+      } catch (e) {
+        console.log('Tasks fetch optional:', e);
+      }
+
+      // Sort by date and take first 5
+      upcomingDeadlines.sort((a, b) => a.date.getTime() - b.date.getTime());
+      setDeadlines(upcomingDeadlines.slice(0, 5));
+
+    } catch (error) {
+      console.error('Error loading dashboard stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -53,26 +185,26 @@ const Dashboard = () => {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Active Cases"
-          value={activeCases}
-          subtitle={activeCases > 0 ? "Loading details..." : "No active cases"}
+          value={loading ? "..." : stats.activeCases}
+          subtitle={stats.activeCases > 0 ? `${stats.activeCases} case${stats.activeCases > 1 ? 's' : ''} in progress` : "No active cases"}
           icon={Briefcase}
         />
         <StatCard
           title="Billable Hours (Month)"
-          value={monthlyBillableHours.toFixed(1)}
+          value={loading ? "..." : stats.monthlyBillableHours.toFixed(1)}
           subtitle="Current month"
           icon={Clock}
         />
         <StatCard
           title="Ready to Invoice"
-          value={`$${amountReadyToInvoice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          value={loading ? "..." : `$${stats.amountReadyToInvoice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           subtitle="Unbilled time"
           icon={DollarSign}
         />
         {user?.role === 'Admin' && (
           <StatCard
             title="Active Timers"
-            value={activeTimers}
+            value={loading ? "..." : stats.activeTimers}
             subtitle="Last 24 hours"
             icon={Timer}
           />
@@ -80,8 +212,8 @@ const Dashboard = () => {
         {user?.role !== 'Admin' && (
           <StatCard
             title="Pending Invoices"
-            value={`$${pendingInvoices.toLocaleString()}`}
-            subtitle={pendingInvoices > 0 ? "Loading details..." : "No pending invoices"}
+            value={loading ? "..." : `$${stats.pendingInvoicesAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            subtitle={stats.pendingInvoicesAmount > 0 ? "Awaiting payment" : "All invoices paid"}
             icon={DollarSign}
           />
         )}
@@ -116,27 +248,26 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                      <Calendar className="h-5 w-5 text-warning mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium">Discovery Deadline</p>
-                        <p className="text-xs text-muted-foreground">Feb 25 - Johnson v. Smith</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <Calendar className="h-5 w-5 text-info mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium">Client Meeting</p>
-                        <p className="text-xs text-muted-foreground">Feb 15 - Margaret Green</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <Calendar className="h-5 w-5 text-destructive mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium">Court Hearing</p>
-                        <p className="text-xs text-muted-foreground">Feb 20 - Johnson v. Smith</p>
-                      </div>
-                    </div>
+                    {loading ? (
+                      <p className="text-sm text-muted-foreground">Loading...</p>
+                    ) : deadlines.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No upcoming deadlines</p>
+                    ) : (
+                      deadlines.map((deadline) => (
+                        <div key={deadline.id} className="flex items-start gap-3">
+                          <Calendar className={`h-5 w-5 mt-0.5 ${
+                            deadline.type === 'hearing' ? 'text-destructive' : 
+                            deadline.type === 'task' ? 'text-warning' : 'text-info'
+                          }`} />
+                          <div>
+                            <p className="text-sm font-medium">{deadline.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {deadline.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {deadline.description}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
