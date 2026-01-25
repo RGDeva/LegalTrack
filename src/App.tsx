@@ -22,6 +22,8 @@ import Admin from "./pages/Admin";
 import BillingCodes from "./pages/BillingCodes";
 import Settings from "./pages/Settings";
 import SignIn from "./pages/SignIn";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import { LoginDialog } from "./components/auth/LoginDialog";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
@@ -50,6 +52,8 @@ function App() {
               <Routes>
                 {/* Public Routes */}
                 <Route path="/signin" element={<SignIn />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 
                 {/* Protected Routes */}
                 <Route path="/" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
