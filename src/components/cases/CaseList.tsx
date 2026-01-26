@@ -29,13 +29,27 @@ export function CaseList() {
     try {
       setLoading(true);
       const token = localStorage.getItem('authToken');
-            const res = await fetch(`${API_URL}/cases`, {
+      const res = await fetch(`${API_URL}/cases`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      
       const data = await res.json();
-      setCases(data);
+      
+      // Ensure data is an array
+      if (Array.isArray(data)) {
+        setCases(data);
+      } else {
+        console.error('Cases data is not an array:', data);
+        setCases([]);
+        toast.error('Invalid data format received');
+      }
     } catch (error) {
       console.error('Error loading cases:', error);
+      setCases([]); // Set empty array on error
       toast.error('Failed to load cases');
     } finally {
       setLoading(false);

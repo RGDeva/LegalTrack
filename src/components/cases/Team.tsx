@@ -80,10 +80,17 @@ const Team = ({ caseId }: TeamProps) => {
       });
       if (res.ok) {
         const data = await res.json();
-        setAllStaff(data);
+        if (Array.isArray(data)) {
+          setAllStaff(data);
+        } else {
+          setAllStaff([]);
+        }
+      } else {
+        setAllStaff([]);
       }
     } catch (error) {
       console.error('Error loading staff:', error);
+      setAllStaff([]);
     } finally {
       setLoading(false);
     }

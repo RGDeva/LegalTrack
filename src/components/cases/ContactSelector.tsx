@@ -45,10 +45,17 @@ const ContactSelector: React.FC<ContactSelectorProps> = ({
       });
       if (res.ok) {
         const data = await res.json();
-        setContacts(data);
+        if (Array.isArray(data)) {
+          setContacts(data);
+        } else {
+          setContacts([]);
+        }
+      } else {
+        setContacts([]);
       }
     } catch (error) {
       console.error('Error loading contacts:', error);
+      setContacts([]);
     } finally {
       setLoading(false);
     }
