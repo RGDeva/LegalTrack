@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Search, UserPlus, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { Contact } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import { API_URL } from "@/lib/api-url";
 
 interface ContactSelectorProps {
   selectedContact?: Contact;
@@ -27,7 +28,31 @@ const ContactSelector: React.FC<ContactSelectorProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  // Load contacts from API on mount
+  useEffect(() => {
+    loadContacts();
+  }, []);
+
+  const loadContacts = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${API_URL}/contacts`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setContacts(data);
+      }
+    } catch (error) {
+      console.error('Error loading contacts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const [newContact, setNewContact] = useState<Partial<Contact>>({
     name: "",

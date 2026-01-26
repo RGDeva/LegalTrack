@@ -35,44 +35,7 @@ interface RunsheetProps {
 
 const Runsheet = ({ caseId }: RunsheetProps) => {
   const { user } = useAuth();
-  const [activities, setActivities] = useState<Activity[]>([
-    {
-      id: '1',
-      type: 'meeting',
-      title: 'Initial Client Meeting',
-      description: 'Discussed case strategy and gathered initial documents. Client provided background information on the dispute.',
-      date: '2024-02-10',
-      time: '10:00 AM',
-      duration: 60,
-      billable: true,
-      createdBy: 'John Smith',
-      timestamp: '2024-02-10T10:00:00',
-      tags: [[][1]] // client meeting tag
-    },
-    {
-      id: '2',
-      type: 'document',
-      title: 'Filed Motion for Discovery',
-      description: 'Submitted motion for discovery to opposing counsel. Documents include interrogatories and document requests.',
-      date: '2024-02-08',
-      createdBy: 'Sarah Johnson',
-      timestamp: '2024-02-08T14:30:00',
-      tags: [[][0], [][2]] // discovery and court filing tags
-    },
-    {
-      id: '3',
-      type: 'phone',
-      title: 'Call with Opposing Counsel',
-      description: 'Discussed potential settlement options. They are willing to negotiate.',
-      date: '2024-02-07',
-      time: '2:30 PM',
-      duration: 18,
-      billable: true,
-      createdBy: 'John Smith',
-      timestamp: '2024-02-07T14:30:00',
-      tags: [[][4]] // settlement tag
-    }
-  ]);
+  const [activities, setActivities] = useState<Activity[]>([]);
 
   const [showNewActivity, setShowNewActivity] = useState(false);
   const [newActivity, setNewActivity] = useState({

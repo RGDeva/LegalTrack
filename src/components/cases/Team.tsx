@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { UserPlus, X, Mail, Phone, Briefcase } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { API_URL } from "@/lib/api-url";
+import { toast } from "sonner";
 
 interface TeamMember {
   id: string;
@@ -29,6 +31,16 @@ interface TeamMember {
   role: string;
   caseRole: string;
   billableRate: number;
+}
+
+interface Staff {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: string;
+  billableRate: number;
+  status: string;
 }
 
 interface TeamProps {
@@ -46,41 +58,45 @@ const caseRoles = [
 ];
 
 const Team = ({ caseId }: TeamProps) => {
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
-    {
-      id: "tm-1",
-      staffId: "staff1",
-      name: "Sarah Johnson",
-      email: "sjohnson@legaltrack.com",
-      phone: "(555) 123-4567",
-      role: "Senior Partner",
-      caseRole: "Lead Attorney",
-      billableRate: 450
-    },
-    {
-      id: "tm-2",
-      staffId: "staff3",
-      name: "Emily Rodriguez",
-      email: "erodriguez@legaltrack.com",
-      phone: "(555) 345-6789",
-      role: "Paralegal",
-      caseRole: "Paralegal",
-      billableRate: 125
-    }
-  ]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [allStaff, setAllStaff] = useState<Staff[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedStaffId, setSelectedStaffId] = useState<string>("");
   const [selectedCaseRole, setSelectedCaseRole] = useState<string>("");
 
-  const availableStaff = [].filter(
+  // Load staff from API
+  useEffect(() => {
+    loadStaff();
+  }, []);
+
+  const loadStaff = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${API_URL}/staff`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAllStaff(data);
+      }
+    } catch (error) {
+      console.error('Error loading staff:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const availableStaff = allStaff.filter(
     staff => !teamMembers.some(tm => tm.staffId === staff.id) && staff.status === "active"
   );
 
   const handleAddMember = () => {
     if (!selectedStaffId || !selectedCaseRole) return;
 
-    const staff = [].find(s => s.id === selectedStaffId);
+    const staff = allStaff.find(s => s.id === selectedStaffId);
     if (!staff) return;
 
     const newMember: TeamMember = {
@@ -88,16 +104,17 @@ const Team = ({ caseId }: TeamProps) => {
       staffId: staff.id,
       name: staff.name,
       email: staff.email,
-      phone: staff.phone,
+      phone: staff.phone || '',
       role: staff.role,
       caseRole: selectedCaseRole,
-      billableRate: staff.billableRate
+      billableRate: staff.billableRate || 0
     };
 
     setTeamMembers([...teamMembers, newMember]);
     setSelectedStaffId("");
     setSelectedCaseRole("");
     setDialogOpen(false);
+    toast.success(`${staff.name} added to case team`);
   };
 
   const handleRemoveMember = (memberId: string) => {

@@ -69,4 +69,89 @@ router.delete('/:id', verifyToken, async (req, res) => {
   }
 });
 
+// GET comments for a case
+router.get('/:id/comments', verifyToken, async (req, res) => {
+  try {
+    const comments = await prisma.caseComment.findMany({
+      where: { caseId: req.params.id },
+      include: { user: { select: { id: true, name: true, email: true, role: true } } },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(comments);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST add comment to case
+router.post('/:id/comments', verifyToken, async (req, res) => {
+  try {
+    const { comment } = req.body;
+    if (!comment || !comment.trim()) {
+      return res.status(400).json({ error: 'Comment is required' });
+    }
+    
+    const newComment = await prisma.caseComment.create({
+      data: {
+        caseId: req.params.id,
+        userId: req.user.id,
+        comment: comment.trim()
+      },
+      include: { user: { select: { id: true, name: true, email: true, role: true } } }
+    });
+    res.status(201).json(newComment);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT update comment
+router.put('/:caseId/comments/:commentId', verifyToken, async (req, res) => {
+  try {
+    const { comment } = req.body;
+    const existingComment = await prisma.caseComment.findUnique({
+      where: { id: req.params.commentId }
+    });
+    
+    if (!existingComment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+    
+    if (existingComment.userId !== req.user.id) {
+      return res.status(403).json({ error: 'You can only edit your own comments' });
+    }
+    
+    const updatedComment = await prisma.caseComment.update({
+      where: { id: req.params.commentId },
+      data: { comment },
+      include: { user: { select: { id: true, name: true, email: true, role: true } } }
+    });
+    res.json(updatedComment);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE comment
+router.delete('/:caseId/comments/:commentId', verifyToken, async (req, res) => {
+  try {
+    const existingComment = await prisma.caseComment.findUnique({
+      where: { id: req.params.commentId }
+    });
+    
+    if (!existingComment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+    
+    if (existingComment.userId !== req.user.id && req.user.role !== 'Admin') {
+      return res.status(403).json({ error: 'You can only delete your own comments' });
+    }
+    
+    await prisma.caseComment.delete({ where: { id: req.params.commentId } });
+    res.json({ message: 'Comment deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

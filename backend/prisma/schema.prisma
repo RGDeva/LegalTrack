@@ -45,6 +45,7 @@ model User {
   assignedTasks Task[]        @relation("AssignedTasks")
   createdTasks  Task[]        @relation("CreatedTasks")
   taskComments  TaskComment[]
+  caseComments  CaseComment[]
   notificationLogs NotificationLog[]
 }
 
@@ -72,6 +73,7 @@ model Case {
   documents     Document[]
   timeEntries   TimeEntry[]
   tasks         Task[]
+  comments      CaseComment[]
   
   @@index([caseNumber])
   @@index([status])
@@ -220,6 +222,21 @@ model TaskComment {
   
   @@index([taskId])
   @@index([userId])
+}
+
+model CaseComment {
+  id            String    @id @default(cuid())
+  caseId        String
+  case          Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  comment       String    @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([caseId])
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model BillingCode {

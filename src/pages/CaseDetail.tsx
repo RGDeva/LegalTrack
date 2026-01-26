@@ -11,6 +11,7 @@ import Timesheet from "@/components/cases/Timesheet";
 import ContactSelector from "@/components/cases/ContactSelector";
 import Documents from "@/components/cases/Documents";
 import Team from "@/components/cases/Team";
+import { CaseComments } from "@/components/cases/CaseComments";
 import { CaseTimer } from "@/components/cases/CaseTimer";
 import { TimeEntriesRunsheet } from "@/components/time/TimeEntriesRunsheet";
 import { ManualTimeEntryDialog } from "@/components/time/ManualTimeEntryDialog";
@@ -416,6 +417,11 @@ const CaseDetail = () => {
               matterId={id || ''}
               onEntryUpdated={() => setRefreshKey(prev => prev + 1)}
             />
+          </div>
+
+          {/* Case Comments Section */}
+          <div className="mt-6">
+            <CaseComments caseId={id || ''} />
           </div>
         </TabsContent>
 
