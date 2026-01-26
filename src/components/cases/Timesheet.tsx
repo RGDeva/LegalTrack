@@ -1,75 +1,105 @@
-import { useState } from "react";
-import { Clock, DollarSign, Edit2, Save, X, User } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Clock, DollarSign, User, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { TimeEntry } from "@/types";
-import { toast } from "sonner";
+import { API_URL } from "@/lib/api-url";
+
+interface TimeEntry {
+  id: string;
+  description: string;
+  durationMinutesRaw: number;
+  durationMinutesBilled: number;
+  rateCentsApplied: number;
+  amountCents: number;
+  status: string;
+  createdAt: string;
+  billingCode?: {
+    id: string;
+    code: string;
+    label: string;
+  };
+  user: {
+    id: string;
+    name: string;
+    role: string;
+  };
+}
 
 interface TimesheetProps {
   caseId: string;
 }
 
 const Timesheet = ({ caseId }: TimesheetProps) => {
-  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>(
-    [].filter(entry => entry.caseId === caseId)
-  );
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<Partial<TimeEntry>>({});
+  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleEdit = (entry: TimeEntry) => {
-    setEditingId(entry.id);
-    setEditForm({
-      description: entry.description,
-      duration: entry.duration,
-      rate: entry.rate,
-      billable: entry.billable,
-      billingCode: entry.billingCode,
+  useEffect(() => {
+    loadTimeEntries();
+  }, [caseId]);
+
+  const loadTimeEntries = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${API_URL}/time-entries/matter/${caseId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTimeEntries(data);
+      } else {
+        setTimeEntries([]);
+      }
+    } catch (error) {
+      console.error('Error loading time entries:', error);
+      setTimeEntries([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDuration = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+  };
+
+  const formatAmount = (cents: number) => {
+    return `$${(cents / 100).toFixed(2)}`;
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
     });
   };
 
-  const handleSave = (id: string) => {
-    setTimeEntries(entries =>
-      entries.map(entry => {
-        if (entry.id === id) {
-          const updatedEntry = {
-            ...entry,
-            ...editForm,
-            amount: (editForm.duration || entry.duration) * (editForm.rate || entry.rate) / 10, // 6-minute increments
-          };
-          toast.success("Time entry updated");
-          return updatedEntry;
-        }
-        return entry;
-      })
-    );
-    setEditingId(null);
-    setEditForm({});
-  };
-
-  const handleCancel = () => {
-    setEditingId(null);
-    setEditForm({});
-  };
-
-  const formatDuration = (duration: number) => {
-    const hours = Math.floor(duration / 10);
-    const minutes = (duration % 10) * 6;
-    return `${hours}:${minutes.toString().padStart(2, '0')}`;
-  };
-
   const totalBilled = timeEntries
-    .filter(e => e.billed)
-    .reduce((sum, e) => sum + e.amount, 0);
+    .filter(e => e.status === 'billed')
+    .reduce((sum, e) => sum + e.amountCents, 0);
   
   const totalUnbilled = timeEntries
-    .filter(e => !e.billed && e.billable)
-    .reduce((sum, e) => sum + e.amount, 0);
+    .filter(e => e.status === 'draft')
+    .reduce((sum, e) => sum + e.amountCents, 0);
   
-  const totalHours = timeEntries.reduce((sum, e) => sum + e.duration, 0) / 10;
+  const totalMinutes = timeEntries.reduce((sum, e) => sum + e.durationMinutesBilled, 0);
+  const totalHours = totalMinutes / 60;
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="py-8">
+          <div className="flex items-center justify-center gap-2">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span>Loading time entries...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -99,10 +129,10 @@ const Timesheet = ({ caseId }: TimesheetProps) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-success">
-              ${totalBilled.toLocaleString()}
+              {formatAmount(totalBilled)}
             </div>
             <p className="text-xs text-muted-foreground">
-              {timeEntries.filter(e => e.billed).length} entries billed
+              {timeEntries.filter(e => e.status === 'billed').length} entries billed
             </p>
           </CardContent>
         </Card>
@@ -116,10 +146,10 @@ const Timesheet = ({ caseId }: TimesheetProps) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-warning">
-              ${totalUnbilled.toLocaleString()}
+              {formatAmount(totalUnbilled)}
             </div>
             <p className="text-xs text-muted-foreground">
-              {timeEntries.filter(e => !e.billed && e.billable).length} entries pending
+              {timeEntries.filter(e => e.status === 'draft').length} entries pending
             </p>
           </CardContent>
         </Card>
@@ -137,130 +167,58 @@ const Timesheet = ({ caseId }: TimesheetProps) => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
-                  <TableHead>Time</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead>Attorney</TableHead>
+                  <TableHead>User</TableHead>
                   <TableHead>Code</TableHead>
-                  <TableHead className="text-right">Rate</TableHead>
+                  <TableHead className="text-right">Duration</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {timeEntries.map((entry) => (
                   <TableRow key={entry.id}>
-                    <TableCell className="font-medium">{entry.date}</TableCell>
-                    <TableCell>
-                      {editingId === entry.id ? (
-                        <Input
-                          type="number"
-                          value={editForm.duration}
-                          onChange={(e) => setEditForm({ ...editForm, duration: Number(e.target.value) })}
-                          className="w-20"
-                          min="1"
-                          step="1"
-                        />
-                      ) : (
-                        formatDuration(entry.duration)
-                      )}
+                    <TableCell className="font-medium">
+                      {formatDate(entry.createdAt)}
                     </TableCell>
                     <TableCell className="max-w-xs">
-                      {editingId === entry.id ? (
-                        <Textarea
-                          value={editForm.description}
-                          onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                          className="min-h-[60px]"
-                        />
-                      ) : (
-                        <span className="line-clamp-2">{entry.description}</span>
-                      )}
+                      <span className="line-clamp-2">{entry.description}</span>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <User className="h-3 w-3 text-muted-foreground" />
-                        {entry.attorney}
+                        {entry.user?.name || 'Unknown'}
                       </div>
                     </TableCell>
                     <TableCell>
-                      {editingId === entry.id ? (
-                        <Input
-                          value={editForm.billingCode}
-                          onChange={(e) => setEditForm({ ...editForm, billingCode: e.target.value })}
-                          className="w-20"
-                          maxLength={10}
-                        />
-                      ) : (
+                      {entry.billingCode ? (
                         <Badge variant="outline" className="font-mono text-xs">
-                          {entry.billingCode || 'N/A'}
+                          {entry.billingCode.code}
                         </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      {editingId === entry.id ? (
-                        <Input
-                          type="number"
-                          value={editForm.rate}
-                          onChange={(e) => setEditForm({ ...editForm, rate: Number(e.target.value) })}
-                          className="w-24 text-right"
-                          min="0"
-                          step="25"
-                        />
-                      ) : (
-                        `$${entry.rate}/hr`
-                      )}
+                      {formatDuration(entry.durationMinutesBilled)}
                     </TableCell>
                     <TableCell className="text-right font-semibold">
-                      ${entry.amount.toLocaleString()}
+                      {formatAmount(entry.amountCents)}
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col gap-1">
-                        {entry.billed ? (
-                          <Badge className="bg-success text-success-foreground">Billed</Badge>
-                        ) : entry.billable ? (
-                          <Badge className="bg-warning text-warning-foreground">Unbilled</Badge>
-                        ) : (
-                          <Badge variant="secondary">Non-billable</Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {editingId === entry.id ? (
-                        <div className="flex items-center gap-1">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8"
-                            onClick={() => handleSave(entry.id)}
-                          >
-                            <Save className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8"
-                            onClick={handleCancel}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
+                      {entry.status === 'billed' ? (
+                        <Badge className="bg-success text-success-foreground">Billed</Badge>
+                      ) : entry.status === 'draft' ? (
+                        <Badge className="bg-warning text-warning-foreground">Draft</Badge>
                       ) : (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8"
-                          onClick={() => handleEdit(entry)}
-                          disabled={entry.billed}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
+                        <Badge variant="secondary">{entry.status}</Badge>
                       )}
                     </TableCell>
                   </TableRow>
                 ))}
                 {timeEntries.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                       No time entries for this case
                     </TableCell>
                   </TableRow>
