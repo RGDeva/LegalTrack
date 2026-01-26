@@ -26,10 +26,11 @@ const CaseDetail = () => {
   const [caseData, setCaseData] = useState<Case | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedContact, setSelectedContact] = useState<Contact | undefined>(undefined);
+  const [tasks, setTasks] = useState<any[]>([]);
   const caseEvents: any[] = [];
   const unbilledTime: any[] = [];
 
-  // Fetch case data from API
+  // Fetch case data and tasks from API
   useEffect(() => {
     const fetchCase = async () => {
       try {
@@ -50,9 +51,26 @@ const CaseDetail = () => {
         setLoading(false);
       }
     };
+
+    const fetchTasks = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        const res = await fetch(`${API_URL}/tasks`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const allTasks = await res.json();
+          const caseTasks = allTasks.filter((t: any) => t.caseId === id && t.status !== 'completed');
+          setTasks(caseTasks);
+        }
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+      }
+    };
     
     if (id) {
       fetchCase();
+      fetchTasks();
     }
   }, [id]);
   
@@ -111,12 +129,13 @@ const CaseDetail = () => {
     return <Badge className={variants[priority]}>{priority}</Badge>;
   };
 
-  // Mock outstanding tasks - in real app, this would come from database
-  const outstandingTasks = [
-    { id: '1', title: 'Review discovery documents', dueDate: '2024-02-15', priority: 'high' },
-    { id: '2', title: 'Prepare witness list', dueDate: '2024-02-18', priority: 'medium' },
-    { id: '3', title: 'File motion for summary judgment', dueDate: '2024-02-22', priority: 'urgent' },
-  ];
+  // Outstanding tasks loaded from API
+  const outstandingTasks = tasks.map(t => ({
+    id: t.id,
+    title: t.title,
+    dueDate: t.dueDate ? new Date(t.dueDate).toLocaleDateString() : 'No due date',
+    priority: t.priority || 'medium'
+  }));
 
   return (
     <div className="p-6 space-y-6">
