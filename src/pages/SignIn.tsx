@@ -22,7 +22,7 @@ const SignIn = () => {
   useEffect(() => {
     // Redirect if already logged in
     if (user) {
-      navigate('/');
+      navigate('/dashboard');
     }
   }, [user, navigate]);
 
@@ -31,7 +31,7 @@ const SignIn = () => {
       if (credentialResponse.credential) {
         await loginWithGoogle(credentialResponse.credential);
         toast.success('Successfully signed in with Google!');
-        navigate('/');
+        navigate('/dashboard');
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -50,7 +50,7 @@ const SignIn = () => {
     try {
       await login(email, password);
       toast.success('Successfully signed in!');
-      navigate('/');
+      navigate('/dashboard');
     } catch (error) {
       console.error('Login error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Invalid email or password';

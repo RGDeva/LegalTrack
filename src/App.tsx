@@ -27,6 +27,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import AcceptInvite from "./pages/AcceptInvite";
 import NotFound from "./pages/NotFound";
+import LegalTrackLandingPage from "./components/ui/legaltrack-landing-page";
 import { LoginDialog } from "./components/auth/LoginDialog";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -53,13 +54,15 @@ function App() {
               <BrowserRouter>
               <Routes>
                 {/* Public Routes */}
+                <Route path="/" element={<LegalTrackLandingPage />} />
+                <Route path="/login" element={<SignIn />} />
                 <Route path="/signin" element={<SignIn />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/accept-invite" element={<AcceptInvite />} />
                 
                 {/* Protected Routes */}
-                <Route path="/" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
+                <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
                 <Route path="/cases" element={<ProtectedRoute><Layout><Cases /></Layout></ProtectedRoute>} />
                 <Route path="/cases/:id" element={<ProtectedRoute><Layout><CaseDetail /></Layout></ProtectedRoute>} />
                 <Route path="/clients" element={<ProtectedRoute><Layout><Clients /></Layout></ProtectedRoute>} />

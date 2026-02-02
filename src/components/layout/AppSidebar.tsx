@@ -4,7 +4,7 @@ import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGrou
 import { useAuth } from "@/contexts/AuthContext";
 const items = [{
   title: "Dashboard",
-  url: "/",
+  url: "/dashboard",
   icon: LayoutDashboard
 }, {
   title: "Cases",
