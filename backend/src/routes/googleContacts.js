@@ -6,12 +6,29 @@ import { authenticateToken } from '../middleware/auth.js';
 const router = express.Router();
 const prisma = new PrismaClient();
 
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 
+  (process.env.RAILWAY_PUBLIC_DOMAIN 
+    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/api/google-contacts/callback`
+    : 'https://legaltrack-production.up.railway.app/api/google-contacts/callback');
+
+// Debug endpoint to check Google config (no secrets exposed)
+router.get('/debug-config', authenticateToken, async (req, res) => {
+  res.json({
+    hasClientId: !!process.env.GOOGLE_CLIENT_ID,
+    hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+    hasRedirectUri: !!process.env.GOOGLE_REDIRECT_URI,
+    resolvedRedirectUri: GOOGLE_REDIRECT_URI,
+    hasFrontendUrl: !!process.env.FRONTEND_URL,
+    frontendUrl: process.env.FRONTEND_URL || 'not set'
+  });
+});
+
 // Helper to get OAuth2 client
 function getOAuth2Client(tokens) {
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI
+    GOOGLE_REDIRECT_URI
   );
   
   oauth2Client.setCredentials(tokens);
@@ -24,7 +41,7 @@ router.get('/auth-url', authenticateToken, async (req, res) => {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI
+      GOOGLE_REDIRECT_URI
     );
 
     const scopes = [
@@ -71,7 +88,7 @@ router.get('/callback', async (req, res) => {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI
+      GOOGLE_REDIRECT_URI
     );
 
     // Exchange code for tokens
@@ -413,7 +430,7 @@ router.post('/connect', authenticateToken, async (req, res) => {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI
+      GOOGLE_REDIRECT_URI
     );
     
     // Exchange code for tokens
