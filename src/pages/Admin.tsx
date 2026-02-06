@@ -64,7 +64,7 @@ export default function Admin() {
   const loadUsers = async () => {
     try {
       const data = await api.admin.getUsers();
-      setUsers(data);
+      setUsers(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error loading users:", error);
       toast.error("Failed to load users");

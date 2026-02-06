@@ -87,7 +87,8 @@ export function TasksTab({ caseId }: TasksTabProps) {
       });
       
       if (res.ok) {
-        const allTasks = await res.json();
+        const allTasksRaw = await res.json();
+        const allTasks = Array.isArray(allTasksRaw) ? allTasksRaw : [];
         
         // Fetch subtasks for each task
         const tasksWithSubtasks = await Promise.all(
@@ -98,7 +99,7 @@ export function TasksTab({ caseId }: TasksTabProps) {
             
             if (subtasksRes.ok) {
               const subtasks = await subtasksRes.json();
-              return { ...task, subtasks };
+              return { ...task, subtasks: Array.isArray(subtasks) ? subtasks : [] };
             }
             
             return { ...task, subtasks: [] };
