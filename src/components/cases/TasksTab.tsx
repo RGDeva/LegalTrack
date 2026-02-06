@@ -179,11 +179,17 @@ export function TasksTab({ caseId }: TasksTabProps) {
       });
       
       if (res.ok) {
-        toast.success('Subtask created successfully');
+        const result = await res.json();
+        if (result.invitedUser) {
+          toast.success(`Subtask created & invite sent to ${data.assignedToEmail}`);
+        } else {
+          toast.success('Subtask created successfully');
+        }
         fetchTasks();
         setShowNewSubtaskDialog(false);
       } else {
-        toast.error('Failed to create subtask');
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error || 'Failed to create subtask');
       }
     } catch (error) {
       console.error('Error creating subtask:', error);
@@ -539,12 +545,18 @@ function SubtaskForm({ onSubmit, staff }: { onSubmit: (data: any) => void; staff
     title: '',
     description: '',
     assignedToId: '',
+    assignedToEmail: '',
     dueDate: ''
   });
+  const [inviteMode, setInviteMode] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    onSubmit({
+      ...formData,
+      assignedToId: inviteMode ? undefined : formData.assignedToId,
+      assignedToEmail: inviteMode ? formData.assignedToEmail : undefined
+    });
   };
 
   return (
@@ -572,18 +584,45 @@ function SubtaskForm({ onSubmit, staff }: { onSubmit: (data: any) => void; staff
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label htmlFor="subtask-assignedTo">Assign To</Label>
-          <Select value={formData.assignedToId} onValueChange={(value) => setFormData({ ...formData, assignedToId: value })}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select staff" />
-            </SelectTrigger>
-            <SelectContent>
-              {staff.map((member) => (
-                <SelectItem key={member.id} value={member.id}>
-                  {member.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {inviteMode ? (
+            <div className="space-y-2">
+              <Input
+                type="email"
+                placeholder="Enter email to invite"
+                value={formData.assignedToEmail}
+                onChange={(e) => setFormData({ ...formData, assignedToEmail: e.target.value })}
+              />
+              <button
+                type="button"
+                className="text-xs text-primary hover:underline"
+                onClick={() => { setInviteMode(false); setFormData({ ...formData, assignedToEmail: '' }); }}
+              >
+                ← Select existing staff instead
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Select value={formData.assignedToId} onValueChange={(value) => setFormData({ ...formData, assignedToId: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select staff" />
+                </SelectTrigger>
+                <SelectContent>
+                  {staff.map((member) => (
+                    <SelectItem key={member.id} value={member.id}>
+                      {member.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <button
+                type="button"
+                className="text-xs text-primary hover:underline"
+                onClick={() => { setInviteMode(true); setFormData({ ...formData, assignedToId: '' }); }}
+              >
+                + Invite someone by email
+              </button>
+            </div>
+          )}
         </div>
         
         <div>

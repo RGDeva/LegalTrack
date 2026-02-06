@@ -37,7 +37,7 @@ const BillingCodes = () => {
   });
 
   useEffect(() => {
-    if (user?.role !== 'Admin') {
+    if (user?.role !== 'Admin' && user?.role !== 'Developer') {
       toast.error('Access denied. Admin only.');
       return;
     }
@@ -168,7 +168,7 @@ const BillingCodes = () => {
     }
   };
 
-  if (user?.role !== 'Admin') {
+  if (user?.role !== 'Admin' && user?.role !== 'Developer') {
     return (
       <div className="p-6">
         <Card>

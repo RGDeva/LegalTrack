@@ -204,7 +204,7 @@ const Dashboard = () => {
           subtitle="Unbilled time"
           icon={DollarSign}
         />
-        {user?.role === 'Admin' && (
+        {(user?.role === 'Admin' || user?.role === 'Developer') && (
           <StatCard
             title="Active Timers"
             value={loading ? "..." : stats.activeTimers}
@@ -212,7 +212,7 @@ const Dashboard = () => {
             icon={Timer}
           />
         )}
-        {user?.role !== 'Admin' && (
+        {user?.role !== 'Admin' && user?.role !== 'Developer' && (
           <StatCard
             title="Pending Invoices"
             value={loading ? "..." : `$${stats.pendingInvoicesAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}

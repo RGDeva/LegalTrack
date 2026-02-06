@@ -71,7 +71,7 @@ export function AppSidebar() {
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>)}
-              {user?.role === "Admin" && (
+              {(user?.role === "Admin" || user?.role === "Developer") && (
                 <>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>

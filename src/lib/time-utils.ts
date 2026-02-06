@@ -66,7 +66,7 @@ export function calculateTimeEntryAmount(billableMinutes: number, ratePerHour: n
  * Check if user has permission to view rates
  */
 export function canViewRates(user: User): boolean {
-  return user.role === 'Admin' || user.role === 'Attorney';
+  return user.role === 'Admin' || user.role === 'Attorney' || user.role === 'Developer';
 }
 
 /**
@@ -74,4 +74,18 @@ export function canViewRates(user: User): boolean {
  */
 export function isAdmin(user: User): boolean {
   return user.role === 'Admin';
+}
+
+/**
+ * Check if user has developer permissions (Admin-like visibility, no billing)
+ */
+export function isDeveloper(user: User): boolean {
+  return user.role === 'Developer';
+}
+
+/**
+ * Check if user has elevated permissions (Admin or Developer)
+ */
+export function hasElevatedAccess(user: User): boolean {
+  return user.role === 'Admin' || user.role === 'Developer';
 }

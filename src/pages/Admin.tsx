@@ -55,7 +55,7 @@ export default function Admin() {
   });
 
   useEffect(() => {
-    if (user?.role === "Admin") {
+    if (user?.role === "Admin" || user?.role === "Developer") {
       loadUsers();
       loadStats();
     }
@@ -131,7 +131,7 @@ export default function Admin() {
     }
   };
 
-  if (user?.role !== "Admin") {
+  if (user?.role !== "Admin" && user?.role !== "Developer") {
     return (
       <div className="p-6">
         <Card>

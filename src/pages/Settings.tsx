@@ -33,6 +33,7 @@ const Settings = () => {
   const [loading, setLoading] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [googleConnected, setGoogleConnected] = useState(false);
+  const [syncDirection, setSyncDirection] = useState<string>('one_way');
   const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>({
     emailNotifications: true,
     notifyInvoices: true,
@@ -41,7 +42,7 @@ const Settings = () => {
   });
 
   useEffect(() => {
-    if (user?.role === 'Admin') {
+    if (user?.role === 'Admin' || user?.role === 'Developer') {
       loadRoleRates();
     }
     loadNotificationPreferences();
@@ -194,7 +195,7 @@ const Settings = () => {
             <User className="h-4 w-4 mr-2" />
             Profile
           </TabsTrigger>
-          {user?.role === 'Admin' && (
+          {(user?.role === 'Admin' || user?.role === 'Developer') && (
             <>
               <TabsTrigger value="billing">
                 <DollarSign className="h-4 w-4 mr-2" />
@@ -363,12 +364,70 @@ const Settings = () => {
                   {googleConnected ? 'Disconnect' : 'Connect Google'}
                 </Button>
               </div>
+
+              {googleConnected && (
+                <>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Contacts Sync Direction</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Choose how contacts sync between LegalTrack and Google
+                      </p>
+                    </div>
+                    <Select value={syncDirection} onValueChange={setSyncDirection}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="one_way">One-way (Google → App)</SelectItem>
+                        <SelectItem value="two_way">Two-way Sync</SelectItem>
+                        <SelectItem value="manual">Manual Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Sync Contacts Now</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Pull contacts from Google and apply sync direction setting
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={async () => {
+                        try {
+                          const token = localStorage.getItem('authToken');
+                          const res = await fetch(`${API_URL}/google-contacts/sync`, {
+                            method: 'POST',
+                            headers: {
+                              'Authorization': `Bearer ${token}`,
+                              'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ syncDirection })
+                          });
+                          if (res.ok) {
+                            const data = await res.json();
+                            toast.success(`Synced: ${data.imported} imported, ${data.updated} updated, ${data.skipped} skipped`);
+                          } else {
+                            toast.error('Sync failed');
+                          }
+                        } catch {
+                          toast.error('Failed to sync contacts');
+                        }
+                      }}
+                    >
+                      Sync Now
+                    </Button>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Billing Rates (Admin Only) */}
-        {user?.role === 'Admin' && (
+        {/* Billing Rates (Admin / Developer) */}
+        {(user?.role === 'Admin' || user?.role === 'Developer') && (
           <TabsContent value="billing" className="space-y-6">
             <Card>
               <CardHeader>
@@ -415,8 +474,8 @@ const Settings = () => {
           </TabsContent>
         )}
 
-        {/* System Settings (Admin Only) */}
-        {user?.role === 'Admin' && (
+        {/* System Settings (Admin / Developer) */}
+        {(user?.role === 'Admin' || user?.role === 'Developer') && (
           <TabsContent value="system" className="space-y-6">
             <Card>
               <CardHeader>
