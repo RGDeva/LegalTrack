@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter, Phone, Mail, Building2, User } from "lucide-react";
+import { Plus, Search, Filter, Phone, Mail, Building2, User, RefreshCw, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,13 +19,76 @@ const Contacts = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [googleConnected, setGoogleConnected] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const [loading, setLoading] = useState(true);
 
   // Load contacts from API
   useEffect(() => {
     loadContacts();
+    checkGoogleStatus();
   }, []);
+
+  const checkGoogleStatus = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${API_URL}/google-contacts/status`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGoogleConnected(data.isConnected);
+      }
+    } catch (error) {
+      console.error('Error checking Google status:', error);
+    }
+  };
+
+  const syncGoogleContacts = async () => {
+    setSyncing(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${API_URL}/google-contacts/sync`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ syncDirection: 'one_way' })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        sonnerToast.success(`Synced: ${data.imported} imported, ${data.updated} updated, ${data.skipped} skipped`);
+        loadContacts();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        sonnerToast.error(err.error || 'Sync failed');
+      }
+    } catch (error) {
+      console.error('Error syncing Google contacts:', error);
+      sonnerToast.error('Failed to sync Google contacts');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const connectGoogle = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${API_URL}/google-contacts/auth-url`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        window.location.href = data.url;
+      } else {
+        sonnerToast.error('Failed to start Google connection. Check server config.');
+      }
+    } catch {
+      sonnerToast.error('Failed to connect to Google');
+    }
+  };
 
   const loadContacts = async () => {
     try {
@@ -163,13 +226,28 @@ const Contacts = () => {
           <h1 className="text-3xl font-bold">Contacts</h1>
           <p className="text-muted-foreground">Manage your contacts and connections</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="gradient">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Contact
+        <div className="flex gap-2">
+          {googleConnected ? (
+            <Button variant="outline" onClick={syncGoogleContacts} disabled={syncing}>
+              {syncing ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Syncing...</>
+              ) : (
+                <><RefreshCw className="h-4 w-4 mr-2" />Sync Google Contacts</>
+              )}
             </Button>
-          </DialogTrigger>
+          ) : (
+            <Button variant="outline" onClick={connectGoogle}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Connect Google
+            </Button>
+          )}
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="gradient">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Contact
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Add New Contact</DialogTitle>
@@ -272,7 +350,8 @@ const Contacts = () => {
               </Button>
             </div>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4">
@@ -298,6 +377,7 @@ const Contacts = () => {
             <SelectItem value="expert">Experts</SelectItem>
             <SelectItem value="vendor">Vendors</SelectItem>
             <SelectItem value="other">Other</SelectItem>
+            <SelectItem value="imported">Imported (Google)</SelectItem>
           </SelectContent>
         </Select>
       </div>

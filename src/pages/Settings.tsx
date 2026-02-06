@@ -47,6 +47,19 @@ const Settings = () => {
     }
     loadNotificationPreferences();
     loadGoogleStatus();
+
+    // Handle Google OAuth redirect callback
+    const params = new URLSearchParams(window.location.search);
+    const googleStatus = params.get('google');
+    if (googleStatus === 'connected') {
+      toast.success('Google account connected! Contacts have been synced.');
+      setGoogleConnected(true);
+      // Clean up URL
+      window.history.replaceState({}, '', '/settings');
+    } else if (googleStatus === 'error') {
+      toast.error('Failed to connect Google account. Please try again.');
+      window.history.replaceState({}, '', '/settings');
+    }
   }, [user]);
 
   const loadGoogleStatus = async () => {
@@ -357,7 +370,20 @@ const Settings = () => {
                         toast.error('Failed to disconnect');
                       }
                     } else {
-                      toast.info('Google OAuth connection will redirect you to Google');
+                      try {
+                        const token = localStorage.getItem('authToken');
+                        const res = await fetch(`${API_URL}/google-contacts/auth-url`, {
+                          headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (res.ok) {
+                          const data = await res.json();
+                          window.location.href = data.url;
+                        } else {
+                          toast.error('Failed to start Google connection. Check server configuration.');
+                        }
+                      } catch {
+                        toast.error('Failed to connect to Google');
+                      }
                     }
                   }}
                 >

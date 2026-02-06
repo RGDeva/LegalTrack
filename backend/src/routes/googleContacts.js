@@ -18,6 +18,159 @@ function getOAuth2Client(tokens) {
   return oauth2Client;
 }
 
+// Generate Google OAuth consent URL
+router.get('/auth-url', authenticateToken, async (req, res) => {
+  try {
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI
+    );
+
+    const scopes = [
+      'https://www.googleapis.com/auth/contacts.readonly',
+      'https://www.googleapis.com/auth/contacts'
+    ];
+
+    // Pass the user's JWT token as state so we can identify them in the callback
+    const state = req.headers.authorization?.replace('Bearer ', '');
+
+    const url = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: scopes,
+      prompt: 'consent',
+      state
+    });
+
+    res.json({ url });
+  } catch (error) {
+    console.error('Error generating auth URL:', error);
+    res.status(500).json({ error: 'Failed to generate Google auth URL' });
+  }
+});
+
+// OAuth callback - exchange code for tokens and auto-sync
+router.get('/callback', async (req, res) => {
+  try {
+    const { code, state } = req.query;
+
+    if (!code) {
+      return res.status(400).send('Authorization code missing');
+    }
+
+    // Verify the JWT from state to identify the user
+    const jwt = await import('jsonwebtoken');
+    let userId;
+    try {
+      const decoded = jwt.default.verify(state, process.env.JWT_SECRET || 'fallback-secret');
+      userId = decoded.id;
+    } catch (err) {
+      return res.status(401).send('Invalid or expired session. Please try connecting again.');
+    }
+
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI
+    );
+
+    // Exchange code for tokens
+    const { tokens } = await oauth2Client.getToken(code);
+
+    // Save tokens to user
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        googleRefreshToken: tokens.refresh_token,
+        googleAccessToken: tokens.access_token,
+        googleTokenExpiry: tokens.expiry_date ? new Date(tokens.expiry_date) : null
+      }
+    });
+
+    // Auto-sync contacts after connecting
+    try {
+      oauth2Client.setCredentials(tokens);
+      const people = google.people({ version: 'v1', auth: oauth2Client });
+      const response = await people.people.connections.list({
+        resourceName: 'people/me',
+        pageSize: 1000,
+        personFields: 'names,emailAddresses,phoneNumbers,organizations,addresses'
+      });
+
+      const connections = response.data.connections || [];
+      let imported = 0;
+
+      for (const person of connections) {
+        try {
+          const name = person.names?.[0]?.displayName;
+          const email = person.emailAddresses?.[0]?.value;
+          const phone = person.phoneNumbers?.[0]?.value;
+          const organization = person.organizations?.[0]?.name;
+          const title = person.organizations?.[0]?.title;
+          const address = person.addresses?.[0]?.formattedValue;
+          const sourceId = person.resourceName;
+
+          if (!email) continue;
+
+          let existingContact = await prisma.contact.findFirst({ where: { googleSourceId: sourceId } });
+          if (!existingContact) {
+            existingContact = await prisma.contact.findFirst({ where: { email } });
+          }
+
+          if (existingContact) {
+            await prisma.contact.update({
+              where: { id: existingContact.id },
+              data: {
+                name: name || existingContact.name,
+                phone: phone || existingContact.phone,
+                organization: organization || existingContact.organization,
+                title: title || existingContact.title,
+                address: address || existingContact.address,
+                googleContactId: sourceId,
+                googleSourceId: sourceId,
+                googleSyncedAt: new Date(),
+                googleSyncDirection: 'one_way'
+              }
+            });
+          } else {
+            await prisma.contact.create({
+              data: {
+                name: name || email,
+                email,
+                phone,
+                organization,
+                title,
+                address,
+                googleContactId: sourceId,
+                googleSourceId: sourceId,
+                googleSyncedAt: new Date(),
+                googleSyncDirection: 'one_way',
+                leadSource: 'google_contacts',
+                category: 'imported'
+              }
+            });
+            imported++;
+          }
+        } catch (err) {
+          console.error('Error processing contact during auto-sync:', err);
+        }
+      }
+
+      console.log(`Auto-synced ${imported} new contacts from Google for user ${userId}`);
+    } catch (syncErr) {
+      console.error('Auto-sync after connect failed (non-fatal):', syncErr.message);
+    }
+
+    // Redirect back to the frontend settings page with success
+    const frontendUrl = process.env.FRONTEND_URL || 'https://legal-track-nine.vercel.app';
+    res.redirect(`${frontendUrl}/settings?google=connected`);
+  } catch (error) {
+    console.error('Error in Google callback:', error);
+    const frontendUrl = process.env.FRONTEND_URL || 'https://legal-track-nine.vercel.app';
+    res.redirect(`${frontendUrl}/settings?google=error`);
+  }
+});
+
 // Sync contacts from Google
 router.post('/sync', authenticateToken, async (req, res) => {
   try {
@@ -247,7 +400,7 @@ router.post('/import-csv', authenticateToken, async (req, res) => {
   }
 });
 
-// Connect Google account (save tokens)
+// Connect Google account (save tokens) - used by frontend code-exchange flow
 router.post('/connect', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -276,7 +429,7 @@ router.post('/connect', authenticateToken, async (req, res) => {
       }
     });
     
-    res.json({ message: 'Google account connected successfully' });
+    res.json({ message: 'Google account connected successfully', connected: true });
   } catch (error) {
     console.error('Error connecting Google account:', error);
     res.status(500).json({ error: 'Failed to connect Google account' });
