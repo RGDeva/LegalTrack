@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Calendar, Clock, DollarSign, User, Phone, Mail, MapPin, FileText, AlertCircle } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, DollarSign, User, Phone, Mail, MapPin, FileText, AlertCircle, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import { CaseTimer } from "@/components/cases/CaseTimer";
 import { TasksTab } from "@/components/cases/TasksTab";
 import { EnhancedRunsheet } from "@/components/cases/EnhancedRunsheet";
 import { DynamicDetailsForm } from "@/components/cases/DynamicDetailsForm";
+import { VoiceCapture } from "@/components/cases/VoiceCapture";
 import { TimeEntriesRunsheet } from "@/components/time/TimeEntriesRunsheet";
 import { ManualTimeEntryDialog } from "@/components/time/ManualTimeEntryDialog";
 import { Contact, TimeEntry, Case } from "@/types";
@@ -178,12 +179,12 @@ const CaseDetail = () => {
       <Tabs defaultValue="home" className="space-y-6">
         <TabsList className="grid w-full max-w-[1100px] grid-cols-8">
           <TabsTrigger value="home">Home</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="runsheet">Runsheet</TabsTrigger>
-          <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
+          <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="timesheet">Timesheet</TabsTrigger>
+          <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="comments">Comments</TabsTrigger>
         </TabsList>
 
@@ -420,6 +421,12 @@ const CaseDetail = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Dynamic Case Fields Widget */}
+          <DynamicDetailsForm caseId={id || ''} caseType={caseData.type || 'general'} />
+
+          {/* Voice Capture */}
+          <VoiceCapture caseId={id || ''} onActionCompleted={() => setRefreshKey(prev => prev + 1)} />
 
           {/* Time Tracking Section */}
           <div className="space-y-6 mt-6">

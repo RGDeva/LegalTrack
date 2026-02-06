@@ -38,10 +38,10 @@ router.get('/task/:taskId', authenticateToken, async (req, res) => {
   }
 });
 
-// Create a new subtask
+// Create a new subtask (with inline invite support and dependency locking)
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { title, description, taskId, assignedToId, dueDate, orderIndex } = req.body;
+    const { title, description, taskId, assignedToId, assignedToEmail, dueDate, orderIndex, dependsOnId } = req.body;
     const userId = req.user.userId;
     
     // Get the task to find the case ID for runsheet entry
@@ -53,15 +53,53 @@ router.post('/', authenticateToken, async (req, res) => {
     if (!task) {
       return res.status(404).json({ error: 'Task not found' });
     }
+
+    // Inline invite: if assignedToEmail is provided but assignedToId is not,
+    // create a new user with invite token and send invite
+    let resolvedAssignedToId = assignedToId;
+    let invitedNewUser = false;
+    if (!assignedToId && assignedToEmail) {
+      let existingUser = await prisma.user.findUnique({ where: { email: assignedToEmail } });
+      if (!existingUser) {
+        const crypto = await import('crypto');
+        const inviteToken = crypto.randomBytes(32).toString('hex');
+        existingUser = await prisma.user.create({
+          data: {
+            email: assignedToEmail,
+            name: assignedToEmail.split('@')[0],
+            role: 'Staff',
+            status: 'invited',
+            inviteToken,
+            inviteTokenExpiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            invitedById: userId
+          }
+        });
+        invitedNewUser = true;
+        // Log the invitation
+        await prisma.notificationLog.create({
+          data: {
+            userId: existingUser.id,
+            recipientEmail: assignedToEmail,
+            recipientName: existingUser.name,
+            type: 'subtask_invite',
+            subject: `You've been invited to collaborate on "${title}"`,
+            status: 'sent',
+            metadata: { taskId, subtaskTitle: title, inviteToken }
+          }
+        });
+      }
+      resolvedAssignedToId = existingUser.id;
+    }
     
     const subtask = await prisma.subtask.create({
       data: {
         title,
         description,
         taskId,
-        assignedToId,
+        assignedToId: resolvedAssignedToId,
         dueDate: dueDate ? new Date(dueDate) : null,
         orderIndex: orderIndex || 0,
+        dependsOnId: dependsOnId || null,
         createdById: userId
       },
       include: {
@@ -93,7 +131,7 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
     
-    res.status(201).json(subtask);
+    res.status(201).json({ ...subtask, invitedNewUser });
   } catch (error) {
     console.error('Error creating subtask:', error);
     res.status(500).json({ error: 'Failed to create subtask' });
@@ -104,7 +142,7 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, status, assignedToId, dueDate, orderIndex } = req.body;
+    const { title, description, status, assignedToId, dueDate, orderIndex, dependsOnId } = req.body;
     const userId = req.user.userId;
     
     const existingSubtask = await prisma.subtask.findUnique({
@@ -118,6 +156,32 @@ router.put('/:id', authenticateToken, async (req, res) => {
     
     const wasCompleted = existingSubtask.status === 'completed';
     const isNowCompleted = status === 'completed';
+
+    // Dependency locking: check if the dependency subtask is completed
+    if (isNowCompleted && !wasCompleted) {
+      const depId = dependsOnId !== undefined ? dependsOnId : existingSubtask.dependsOnId;
+      if (depId) {
+        const depSubtask = await prisma.subtask.findUnique({ where: { id: depId } });
+        if (depSubtask && depSubtask.status !== 'completed') {
+          return res.status(400).json({
+            error: `Cannot complete: depends on "${depSubtask.title}" which is not yet completed`
+          });
+        }
+      }
+      // Also enforce ordered completion: all subtasks with lower orderIndex must be completed
+      const priorSubtasks = await prisma.subtask.findMany({
+        where: {
+          taskId: existingSubtask.taskId,
+          orderIndex: { lt: existingSubtask.orderIndex },
+          status: { not: 'completed' }
+        }
+      });
+      if (priorSubtasks.length > 0) {
+        return res.status(400).json({
+          error: `Cannot complete: prior subtask "${priorSubtasks[0].title}" must be completed first`
+        });
+      }
+    }
     
     const subtask = await prisma.subtask.update({
       where: { id },
@@ -128,6 +192,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
         assignedToId,
         dueDate: dueDate ? new Date(dueDate) : null,
         orderIndex,
+        dependsOnId: dependsOnId !== undefined ? dependsOnId : existingSubtask.dependsOnId,
         completedAt: isNowCompleted && !wasCompleted ? new Date() : existingSubtask.completedAt
       },
       include: {

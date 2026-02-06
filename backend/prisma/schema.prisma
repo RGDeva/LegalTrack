@@ -127,8 +127,10 @@ model Contact {
   crmLastActivityDate DateTime?
   
   // Google Contacts integration
-  googleContactId String?
-  googleSyncedAt  DateTime?
+  googleContactId   String?
+  googleSourceId    String?   // Stable source ID from Google for dedupe
+  googleSyncedAt    DateTime?
+  googleSyncDirection String?  @default("one_way") // 'one_way', 'two_way', 'manual'
   
   // Lead capture
   isLead        Boolean   @default(false)
@@ -328,6 +330,7 @@ model Subtask {
   assignedTo    User?     @relation("AssignedSubtasks", fields: [assignedToId], references: [id])
   createdById   String
   createdBy     User      @relation("CreatedSubtasks", fields: [createdById], references: [id])
+  dependsOnId   String?   // ID of subtask that must be completed first
   completedAt   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -357,7 +360,7 @@ model RunsheetEntry {
   id            String    @id @default(cuid())
   caseId        String
   case          Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  type          String    // 'manual', 'time_entry', 'task_created', 'task_completed', 'subtask_completed', 'comment'
+  type          String    // 'manual', 'time_entry', 'task_created', 'task_completed', 'subtask_completed', 'comment', 'time_entry_created', 'time_entry_edited', 'time_entry_deleted', 'time_entry_status_change'
   title         String
   description   String?   @db.Text
   userId        String?
@@ -365,9 +368,28 @@ model RunsheetEntry {
   metadata      Json?     // Additional context (task ID, time entry ID, etc.)
   createdAt     DateTime  @default(now())
   
+  comments      RunsheetComment[]
+  
   @@index([caseId])
   @@index([type])
   @@index([createdAt])
+}
+
+model RunsheetComment {
+  id              String    @id @default(cuid())
+  runsheetEntryId String
+  runsheetEntry   RunsheetEntry @relation(fields: [runsheetEntryId], references: [id], onDelete: Cascade)
+  parentId        String?   // For threaded replies
+  userId          String
+  userName        String?
+  comment         String    @db.Text
+  mentions        String[]  // Array of user IDs mentioned
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([runsheetEntryId])
+  @@index([parentId])
+  @@index([userId])
 }
 
 model CaseFieldTemplate {

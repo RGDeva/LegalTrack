@@ -200,7 +200,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'Admin' | 'Attorney' | 'Staff' | 'Paralegal' | 'Legal Assistant';
+  role: 'Admin' | 'Attorney' | 'Staff' | 'Paralegal' | 'Legal Assistant' | 'Developer';
   firmId: string;
   phone?: string;
   department?: string;

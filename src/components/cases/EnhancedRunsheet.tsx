@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Plus, Clock, FileText, MessageSquare, CheckCircle, ListTodo, Timer } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, Clock, FileText, MessageSquare, CheckCircle, ListTodo, Timer, Send, ChevronDown, ChevronRight, AtSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -11,6 +11,17 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { API_URL } from '@/lib/api-url';
 import { toast } from 'sonner';
 
+interface RunsheetComment {
+  id: string;
+  comment: string;
+  userName?: string;
+  userId: string;
+  mentions: string[];
+  createdAt: string;
+  parentId?: string;
+  replies?: RunsheetComment[];
+}
+
 interface RunsheetEntry {
   id: string;
   type: string;
@@ -21,6 +32,7 @@ interface RunsheetEntry {
   metadata?: any;
   createdAt: string;
   source: string;
+  comments?: RunsheetComment[];
 }
 
 interface EnhancedRunsheetProps {
@@ -32,10 +44,57 @@ export function EnhancedRunsheet({ caseId }: EnhancedRunsheetProps) {
   const [loading, setLoading] = useState(true);
   const [showNewEntryDialog, setShowNewEntryDialog] = useState(false);
   const [filterType, setFilterType] = useState<string>('all');
+  const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
+  const [commentText, setCommentText] = useState<Record<string, string>>({});
+  const [staff, setStaff] = useState<any[]>([]);
 
   useEffect(() => {
     fetchRunsheet();
+    fetchStaff();
   }, [caseId]);
+
+  const fetchStaff = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${API_URL}/staff`, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) { const data = await res.json(); setStaff(Array.isArray(data) ? data : []); }
+    } catch (e) { console.error('Error fetching staff:', e); }
+  };
+
+  const toggleComments = (entryId: string) => {
+    const next = new Set(expandedComments);
+    next.has(entryId) ? next.delete(entryId) : next.add(entryId);
+    setExpandedComments(next);
+  };
+
+  const parseMentions = (text: string): string[] => {
+    const matches = text.match(/@(\w+)/g);
+    if (!matches) return [];
+    return matches.map(m => {
+      const name = m.slice(1).toLowerCase();
+      const found = staff.find(s => s.name?.toLowerCase().includes(name));
+      return found?.id;
+    }).filter(Boolean);
+  };
+
+  const submitComment = async (entryId: string, parentId?: string) => {
+    const text = commentText[entryId + (parentId || '')];
+    if (!text?.trim()) return;
+    try {
+      const token = localStorage.getItem('authToken');
+      const mentions = parseMentions(text);
+      const res = await fetch(`${API_URL}/runsheet/${entryId}/comments`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comment: text, mentions, parentId })
+      });
+      if (res.ok) {
+        toast.success('Comment added');
+        setCommentText(prev => ({ ...prev, [entryId + (parentId || '')]: '' }));
+        fetchRunsheet();
+      } else { toast.error('Failed to add comment'); }
+    } catch (e) { console.error('Error adding comment:', e); toast.error('Failed to add comment'); }
+  };
 
   const fetchRunsheet = async () => {
     try {
@@ -269,6 +328,61 @@ export function EnhancedRunsheet({ caseId }: EnhancedRunsheetProps) {
                           </div>
                         )}
                       </CardContent>
+                    )}
+
+                    {/* Comment Thread Toggle & Inline */}
+                    {entry.source === 'runsheet' && (
+                      <div className="px-6 pb-4">
+                        <button
+                          onClick={() => toggleComments(entry.id)}
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {expandedComments.has(entry.id) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                          <MessageSquare className="h-3 w-3" />
+                          <span>{entry.comments?.length || 0} comment{(entry.comments?.length || 0) !== 1 ? 's' : ''}</span>
+                        </button>
+
+                        {expandedComments.has(entry.id) && (
+                          <div className="mt-3 space-y-3">
+                            {entry.comments && entry.comments.length > 0 && (
+                              <div className="space-y-2 pl-4 border-l-2 border-muted">
+                                {entry.comments.map((c) => (
+                                  <div key={c.id} className="text-sm">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium">{c.userName || 'User'}</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {new Date(c.createdAt).toLocaleString()}
+                                      </span>
+                                      {c.mentions && c.mentions.length > 0 && (
+                                        <AtSign className="h-3 w-3 text-primary" />
+                                      )}
+                                    </div>
+                                    <p className="text-muted-foreground">{c.comment}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <div className="flex gap-2">
+                              <Input
+                                value={commentText[entry.id] || ''}
+                                onChange={(e) => setCommentText(prev => ({ ...prev, [entry.id]: e.target.value }))}
+                                placeholder="Add a comment... Use @name to mention"
+                                className="h-8 text-sm"
+                                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitComment(entry.id); } }}
+                              />
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 px-2"
+                                onClick={() => submitComment(entry.id)}
+                                disabled={!commentText[entry.id]?.trim()}
+                              >
+                                <Send className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </Card>
                 </div>

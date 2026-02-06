@@ -59,6 +59,8 @@ router.post('/sync', authenticateToken, async (req, res) => {
     let updated = 0;
     let skipped = 0;
     
+    const { syncDirection } = req.body; // 'one_way', 'two_way', 'manual'
+
     for (const person of connections) {
       try {
         const name = person.names?.[0]?.displayName;
@@ -67,34 +69,59 @@ router.post('/sync', authenticateToken, async (req, res) => {
         const organization = person.organizations?.[0]?.name;
         const title = person.organizations?.[0]?.title;
         const address = person.addresses?.[0]?.formattedValue;
+        // Stable source ID from Google for reliable dedupe
+        const sourceId = person.resourceName; // e.g. "people/c12345"
         
         if (!email) {
           skipped++;
           continue;
         }
         
-        // Check if contact already exists
-        const existingContact = await prisma.contact.findFirst({
-          where: { email }
+        // Check if contact already exists by sourceId first (stable), then email (fallback)
+        let existingContact = await prisma.contact.findFirst({
+          where: { googleSourceId: sourceId }
         });
+        if (!existingContact) {
+          existingContact = await prisma.contact.findFirst({
+            where: { email }
+          });
+        }
         
         if (existingContact) {
-          // Update if it was previously synced from Google
-          if (existingContact.googleContactId) {
-            await prisma.contact.update({
-              where: { id: existingContact.id },
-              data: {
-                name: name || existingContact.name,
-                phone: phone || existingContact.phone,
-                organization: organization || existingContact.organization,
-                title: title || existingContact.title,
-                address: address || existingContact.address,
-                googleSyncedAt: new Date()
-              }
-            });
-            updated++;
-          } else {
-            skipped++;
+          // Update if it was previously synced from Google or matched by email
+          await prisma.contact.update({
+            where: { id: existingContact.id },
+            data: {
+              name: name || existingContact.name,
+              phone: phone || existingContact.phone,
+              organization: organization || existingContact.organization,
+              title: title || existingContact.title,
+              address: address || existingContact.address,
+              googleContactId: sourceId,
+              googleSourceId: sourceId,
+              googleSyncedAt: new Date(),
+              googleSyncDirection: syncDirection || existingContact.googleSyncDirection || 'one_way'
+            }
+          });
+          updated++;
+
+          // Two-way sync: push local changes back to Google
+          if ((syncDirection === 'two_way' || existingContact.googleSyncDirection === 'two_way') && existingContact.googleContactId) {
+            try {
+              await people.people.updateContact({
+                resourceName: existingContact.googleContactId,
+                updatePersonFields: 'names,emailAddresses,phoneNumbers,organizations',
+                requestBody: {
+                  etag: person.etag,
+                  names: [{ givenName: existingContact.name }],
+                  emailAddresses: [{ value: existingContact.email }],
+                  phoneNumbers: existingContact.phone ? [{ value: existingContact.phone }] : [],
+                  organizations: existingContact.organization ? [{ name: existingContact.organization }] : []
+                }
+              });
+            } catch (pushErr) {
+              console.error('Error pushing contact to Google:', pushErr.message);
+            }
           }
         } else {
           // Create new contact
@@ -106,8 +133,10 @@ router.post('/sync', authenticateToken, async (req, res) => {
               organization,
               title,
               address,
-              googleContactId: person.resourceName,
+              googleContactId: sourceId,
+              googleSourceId: sourceId,
               googleSyncedAt: new Date(),
+              googleSyncDirection: syncDirection || 'one_way',
               leadSource: 'google_contacts',
               category: 'imported'
             }

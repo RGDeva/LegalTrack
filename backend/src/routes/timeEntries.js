@@ -6,6 +6,18 @@ import { processTimeEntry, calculateRawMinutes, calculateBilledMinutes, calculat
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// Helper: create a runsheet entry for any time tracking event
+async function logTimeEventToRunsheet(matterId, type, title, description, userId, userName, metadata) {
+  if (!matterId) return;
+  try {
+    await prisma.runsheetEntry.create({
+      data: { caseId: matterId, type, title, description, userId, userName, metadata }
+    });
+  } catch (err) {
+    console.error('Error logging time event to runsheet:', err);
+  }
+}
+
 // GET all time entries
 router.get('/', verifyToken, async (req, res) => {
   try {
@@ -102,6 +114,13 @@ router.post('/start', verifyToken, async (req, res) => {
       }
     });
     
+    // Log to runsheet
+    await logTimeEventToRunsheet(
+      matterId, 'time_entry_created', `Timer started: ${description || '(no description)'}`,
+      description, req.user.id, req.user.name || req.user.email,
+      { timeEntryId: entry.id, action: 'timer_started' }
+    );
+
     res.status(201).json(entry);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -173,6 +192,14 @@ router.post('/stop/:id', verifyToken, async (req, res) => {
       }
     });
     
+    // Log to runsheet
+    await logTimeEventToRunsheet(
+      updated.matterId, 'time_entry_created',
+      `Timer stopped: ${updated.description?.substring(0, 60) || '(no description)'} (${updated.durationMinutesBilled} min)`,
+      updated.description, req.user.id, req.user.name || req.user.email,
+      { timeEntryId: updated.id, action: 'timer_stopped', durationMinutes: updated.durationMinutesBilled, amountCents: updated.amountCents }
+    );
+
     res.json(updated);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -226,6 +253,14 @@ router.post('/manual', verifyToken, async (req, res) => {
       }
     });
     
+    // Log to runsheet
+    await logTimeEventToRunsheet(
+      matterId, 'time_entry_created',
+      `Manual time entry: ${description?.substring(0, 60) || '(no description)'} (${entry.durationMinutesBilled} min)`,
+      description, req.user.id, req.user.name || req.user.email,
+      { timeEntryId: entry.id, action: 'manual_entry', durationMinutes: entry.durationMinutesBilled, amountCents: entry.amountCents }
+    );
+
     res.status(201).json(entry);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -289,6 +324,14 @@ router.put('/:id', verifyToken, async (req, res) => {
       }
     });
     
+    // Log to runsheet
+    await logTimeEventToRunsheet(
+      updated.matterId, 'time_entry_edited',
+      `Time entry edited: ${updated.description?.substring(0, 60) || '(no description)'}`,
+      updated.description, req.user.id, req.user.name || req.user.email,
+      { timeEntryId: updated.id, action: 'edited' }
+    );
+
     res.json(updated);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -310,6 +353,14 @@ router.delete('/:id', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Cannot delete billed time entry' });
     }
     
+    // Log to runsheet before deleting
+    await logTimeEventToRunsheet(
+      entry.matterId, 'time_entry_deleted',
+      `Time entry deleted: ${entry.description?.substring(0, 60) || '(no description)'}`,
+      entry.description, req.user.id, req.user.name || req.user.email,
+      { timeEntryId: entry.id, action: 'deleted', durationMinutes: entry.durationMinutesBilled }
+    );
+
     await prisma.timeEntry.delete({ where: { id: req.params.id } });
     res.json({ message: 'Time entry deleted' });
   } catch (error) {

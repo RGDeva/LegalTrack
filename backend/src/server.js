@@ -70,6 +70,7 @@ import caseFieldTemplatesRoutes from './routes/caseFieldTemplates.js';
 import leadFormsRoutes from './routes/leadForms.js';
 import googleContactsRoutes from './routes/googleContacts.js';
 import googleDriveCaseRoutes from './routes/googleDriveCase.js';
+import voiceCaptureRoutes from './routes/voiceCapture.js';
 
 // Conditionally import Google routes to prevent startup failures
 let googleDriveRoutes = null;
@@ -162,6 +163,7 @@ app.use('/api/case-field-templates', caseFieldTemplatesRoutes);
 app.use('/api/lead-forms', leadFormsRoutes);
 app.use('/api/google-contacts', googleContactsRoutes);
 app.use('/api/google-drive-case', googleDriveCaseRoutes);
+app.use('/api/voice-capture', voiceCaptureRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
