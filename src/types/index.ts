@@ -66,7 +66,7 @@ export interface Contact {
   state?: string;
   zip?: string;
   role?: string;
-  category?: 'client' | 'opposing-counsel' | 'court' | 'expert' | 'vendor' | 'other';
+  category?: 'client' | 'opposing-counsel' | 'court' | 'expert' | 'vendor' | 'other' | 'imported';
   notes?: string;
   lastContact?: string;
   tags?: string[];

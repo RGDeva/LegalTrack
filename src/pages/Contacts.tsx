@@ -126,13 +126,14 @@ const Contacts = () => {
 
   const getCategoryBadge = (category?: Contact['category']) => {
     if (!category) return <Badge className="bg-muted text-muted-foreground">other</Badge>;
-    const variants = {
+    const variants: Record<string, string> = {
       client: "bg-success text-success-foreground",
       'opposing-counsel': "bg-destructive text-destructive-foreground",
       court: "bg-info text-info-foreground",
       expert: "bg-warning text-warning-foreground",
       vendor: "bg-secondary text-secondary-foreground",
       other: "bg-muted text-muted-foreground",
+      imported: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
     };
     return <Badge className={variants[category]}>{category.replace('-', ' ')}</Badge>;
   };
