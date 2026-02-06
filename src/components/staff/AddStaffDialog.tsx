@@ -162,12 +162,13 @@ export function AddStaffDialog({ onStaffAdded }: AddStaffDialogProps) {
                   <SelectItem value="Paralegal">Paralegal</SelectItem>
                   <SelectItem value="Legal Assistant">Legal Assistant</SelectItem>
                   <SelectItem value="Staff">Staff</SelectItem>
+                  <SelectItem value="Developer">Developer</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="department" className="text-right">Department</Label>
+              <Label>Department</Label>
               <Select
                 value={formData.department}
                 onValueChange={(value) => setFormData({ ...formData, department: value })}

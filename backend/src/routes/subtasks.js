@@ -42,7 +42,7 @@ router.get('/task/:taskId', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const { title, description, taskId, assignedToId, assignedToEmail, dueDate, orderIndex, dependsOnId } = req.body;
-    const userId = req.user.userId;
+    const userId = req.user.id;
     
     // Get the task to find the case ID for runsheet entry
     const task = await prisma.task.findUnique({
@@ -143,7 +143,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, status, assignedToId, dueDate, orderIndex, dependsOnId } = req.body;
-    const userId = req.user.userId;
+    const userId = req.user.id;
     
     const existingSubtask = await prisma.subtask.findUnique({
       where: { id },
@@ -252,7 +252,7 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { comment, mentions } = req.body;
-    const userId = req.user.userId;
+    const userId = req.user.id;
     
     const subtaskComment = await prisma.subtaskComment.create({
       data: {

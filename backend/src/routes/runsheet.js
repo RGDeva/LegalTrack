@@ -121,7 +121,7 @@ router.get('/case/:caseId', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const { caseId, title, description } = req.body;
-    const userId = req.user.userId;
+    const userId = req.user.id;
     
     const entry = await prisma.runsheetEntry.create({
       data: {
@@ -130,7 +130,7 @@ router.post('/', authenticateToken, async (req, res) => {
         title,
         description,
         userId,
-        userName: req.user.name
+        userName: req.user.name || req.user.email
       },
       include: { comments: true }
     });
@@ -202,7 +202,7 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { comment, mentions, parentId } = req.body;
-    const userId = req.user.userId;
+    const userId = req.user.id;
 
     const entry = await prisma.runsheetEntry.findUnique({ where: { id } });
     if (!entry) return res.status(404).json({ error: 'Runsheet entry not found' });
@@ -212,7 +212,7 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
         runsheetEntryId: id,
         parentId: parentId || null,
         userId,
-        userName: req.user.name,
+        userName: req.user.name || req.user.email,
         comment,
         mentions: mentions || []
       }

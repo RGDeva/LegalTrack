@@ -59,8 +59,8 @@ router.post('/propose-actions', authenticateToken, async (req, res) => {
 router.post('/confirm-actions', authenticateToken, async (req, res) => {
   try {
     const { actions, caseId } = req.body;
-    const userId = req.user.userId;
-    const userName = req.user.name;
+    const userId = req.user.id;
+    const userName = req.user.name || req.user.email;
 
     if (!actions || !Array.isArray(actions)) {
       return res.status(400).json({ error: 'Actions array is required' });

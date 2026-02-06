@@ -21,7 +21,7 @@ function getOAuth2Client(tokens) {
 // Sync contacts from Google
 router.post('/sync', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     
     // Get user's Google tokens
     const user = await prisma.user.findUnique({
@@ -250,7 +250,7 @@ router.post('/import-csv', authenticateToken, async (req, res) => {
 // Connect Google account (save tokens)
 router.post('/connect', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const { code } = req.body;
     
     if (!code) {
@@ -286,7 +286,7 @@ router.post('/connect', authenticateToken, async (req, res) => {
 // Disconnect Google account
 router.post('/disconnect', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     
     await prisma.user.update({
       where: { id: userId },
@@ -307,7 +307,7 @@ router.post('/disconnect', authenticateToken, async (req, res) => {
 // Check Google connection status
 router.get('/status', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     
     const user = await prisma.user.findUnique({
       where: { id: userId },

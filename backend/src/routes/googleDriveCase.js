@@ -23,7 +23,7 @@ router.post('/case/:caseId/link-folder', authenticateToken, async (req, res) => 
   try {
     const { caseId } = req.params;
     const { folderId } = req.body;
-    const userId = req.user.userId;
+    const userId = req.user.id;
     
     // Get user's Google tokens
     const user = await prisma.user.findUnique({
@@ -81,7 +81,7 @@ router.post('/case/:caseId/link-folder', authenticateToken, async (req, res) => 
 router.get('/case/:caseId/files', authenticateToken, async (req, res) => {
   try {
     const { caseId } = req.params;
-    const userId = req.user.userId;
+    const userId = req.user.id;
     
     // Get case and user
     const caseData = await prisma.case.findUnique({
@@ -137,7 +137,7 @@ router.post('/case/:caseId/upload', authenticateToken, async (req, res) => {
   try {
     const { caseId } = req.params;
     const { fileName, fileContent, mimeType } = req.body;
-    const userId = req.user.userId;
+    const userId = req.user.id;
     
     // Get case and user
     const caseData = await prisma.case.findUnique({
@@ -205,7 +205,7 @@ router.post('/case/:caseId/upload', authenticateToken, async (req, res) => {
 router.post('/case/:caseId/backup', authenticateToken, async (req, res) => {
   try {
     const { caseId } = req.params;
-    const userId = req.user.userId;
+    const userId = req.user.id;
     
     // Get case and user
     const caseData = await prisma.case.findUnique({

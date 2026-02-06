@@ -125,7 +125,9 @@ export function InviteUserDialog({ onInviteSent }: InviteUserDialogProps) {
                   <SelectItem value="Admin">Admin</SelectItem>
                   <SelectItem value="Attorney">Attorney</SelectItem>
                   <SelectItem value="Paralegal">Paralegal</SelectItem>
+                  <SelectItem value="Legal Assistant">Legal Assistant</SelectItem>
                   <SelectItem value="Staff">Staff</SelectItem>
+                  <SelectItem value="Developer">Developer</SelectItem>
                 </SelectContent>
               </Select>
             </div>

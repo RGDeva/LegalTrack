@@ -145,7 +145,7 @@ export function EditStaffDialog({ staff, onStaffUpdated }: EditStaffDialogProps)
               <Label htmlFor="role" className="text-right">Role</Label>
               <Select
                 value={formData.role}
-                onValueChange={(value) => setFormData({ ...formData, role: value })}
+                onValueChange={(value: string) => setFormData({ ...formData, role: value as any })}
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue />
@@ -156,6 +156,7 @@ export function EditStaffDialog({ staff, onStaffUpdated }: EditStaffDialogProps)
                   <SelectItem value="Paralegal">Paralegal</SelectItem>
                   <SelectItem value="Legal Assistant">Legal Assistant</SelectItem>
                   <SelectItem value="Staff">Staff</SelectItem>
+                  <SelectItem value="Developer">Developer</SelectItem>
                 </SelectContent>
               </Select>
             </div>

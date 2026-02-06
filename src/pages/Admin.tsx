@@ -263,6 +263,7 @@ export default function Admin() {
                           <SelectItem value="Paralegal">Paralegal</SelectItem>
                           <SelectItem value="Legal Assistant">Legal Assistant</SelectItem>
                           <SelectItem value="Staff">Staff</SelectItem>
+                          <SelectItem value="Developer">Developer</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
