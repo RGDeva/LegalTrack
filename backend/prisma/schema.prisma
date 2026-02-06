@@ -40,6 +40,15 @@ model User {
   notifyDeadlines    Boolean @default(true)
   notifyTasks        Boolean @default(true)
   
+  // 2FA fields
+  twoFactorEnabled  Boolean @default(false)
+  twoFactorSecret   String?
+  
+  // Google integration
+  googleRefreshToken String?
+  googleAccessToken  String?
+  googleTokenExpiry  DateTime?
+  
   timeEntries   TimeEntry[]
   documents     Document[]
   assignedTasks Task[]        @relation("AssignedTasks")
@@ -47,6 +56,9 @@ model User {
   taskComments  TaskComment[]
   caseComments  CaseComment[]
   notificationLogs NotificationLog[]
+  assignedSubtasks Subtask[] @relation("AssignedSubtasks")
+  createdSubtasks  Subtask[] @relation("CreatedSubtasks")
+  subtaskComments  SubtaskComment[]
 }
 
 model Case {
@@ -69,11 +81,18 @@ model Case {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
+  // Google Drive integration
+  googleDriveFolderId String?
+  
+  // Dynamic custom fields (JSON)
+  customFields  Json?
+  
   invoices      Invoice[]
   documents     Document[]
   timeEntries   TimeEntry[]
   tasks         Task[]
   comments      CaseComment[]
+  runsheetEntries RunsheetEntry[]
   
   @@index([caseNumber])
   @@index([status])
@@ -107,11 +126,22 @@ model Contact {
   crmExpectedCloseDate DateTime?
   crmLastActivityDate DateTime?
   
+  // Google Contacts integration
+  googleContactId String?
+  googleSyncedAt  DateTime?
+  
+  // Lead capture
+  isLead        Boolean   @default(false)
+  leadSource    String?   // 'web_form', 'google_contacts', 'csv_import', 'manual'
+  leadCustomFields Json?
+  
   invoices      Invoice[]
   
   @@index([email])
   @@index([category])
   @@index([crmStage])
+  @@index([googleContactId])
+  @@index([isLead])
 }
 
 model Invoice {
@@ -200,11 +230,14 @@ model Task {
   assignedTo    User?     @relation("AssignedTasks", fields: [assignedToId], references: [id])
   createdById   String
   createdBy     User      @relation("CreatedTasks", fields: [createdById], references: [id])
+  orderIndex    Int       @default(0)
+  completedAt   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
   comments      TaskComment[]
   timeEntries   TimeEntry[]
+  subtasks      Subtask[]
   
   @@index([status])
   @@index([assignedToId])
@@ -280,4 +313,88 @@ model NotificationLog {
   @@index([type])
   @@index([status])
   @@index([sentAt])
+}
+
+model Subtask {
+  id            String    @id @default(cuid())
+  title         String
+  description   String?   @db.Text
+  status        String    @default("pending")
+  orderIndex    Int       @default(0)
+  dueDate       DateTime?
+  taskId        String
+  task          Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  assignedToId  String?
+  assignedTo    User?     @relation("AssignedSubtasks", fields: [assignedToId], references: [id])
+  createdById   String
+  createdBy     User      @relation("CreatedSubtasks", fields: [createdById], references: [id])
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  comments      SubtaskComment[]
+  
+  @@index([taskId])
+  @@index([status])
+  @@index([assignedToId])
+}
+
+model SubtaskComment {
+  id            String    @id @default(cuid())
+  subtaskId     String
+  subtask       Subtask   @relation(fields: [subtaskId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  comment       String    @db.Text
+  mentions      String[]  // Array of user IDs mentioned
+  createdAt     DateTime  @default(now())
+  
+  @@index([subtaskId])
+  @@index([userId])
+}
+
+model RunsheetEntry {
+  id            String    @id @default(cuid())
+  caseId        String
+  case          Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  type          String    // 'manual', 'time_entry', 'task_created', 'task_completed', 'subtask_completed', 'comment'
+  title         String
+  description   String?   @db.Text
+  userId        String?
+  userName      String?
+  metadata      Json?     // Additional context (task ID, time entry ID, etc.)
+  createdAt     DateTime  @default(now())
+  
+  @@index([caseId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model CaseFieldTemplate {
+  id            String    @id @default(cuid())
+  name          String
+  caseType      String    // 'civil', 'criminal', 'family', etc.
+  fields        Json      // Array of field definitions: [{name, type, required, options}]
+  isDefault     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([caseType])
+}
+
+model LeadFormSubmission {
+  id            String    @id @default(cuid())
+  name          String
+  email         String
+  phone         String?
+  message       String?   @db.Text
+  customFields  Json?
+  source        String?   // URL or identifier of the form
+  contactId     String?   // Linked contact if converted
+  status        String    @default("new") // 'new', 'contacted', 'converted', 'rejected'
+  createdAt     DateTime  @default(now())
+  
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
 }

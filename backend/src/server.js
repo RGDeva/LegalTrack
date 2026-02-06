@@ -64,6 +64,12 @@ import invoiceDocxRoutes from './routes/invoiceDocx.js';
 import notificationRoutes from './routes/notifications.js';
 import userSettingsRoutes from './routes/userSettings.js';
 import invitationRoutes from './routes/invitations.js';
+import subtasksRoutes from './routes/subtasks.js';
+import runsheetRoutes from './routes/runsheet.js';
+import caseFieldTemplatesRoutes from './routes/caseFieldTemplates.js';
+import leadFormsRoutes from './routes/leadForms.js';
+import googleContactsRoutes from './routes/googleContacts.js';
+import googleDriveCaseRoutes from './routes/googleDriveCase.js';
 
 // Conditionally import Google routes to prevent startup failures
 let googleDriveRoutes = null;
@@ -148,6 +154,14 @@ if (googleCalendarRoutes) {
 
 // Invitation routes
 app.use('/api/invitations', invitationRoutes);
+
+// Enhanced features routes
+app.use('/api/subtasks', subtasksRoutes);
+app.use('/api/runsheet', runsheetRoutes);
+app.use('/api/case-field-templates', caseFieldTemplatesRoutes);
+app.use('/api/lead-forms', leadFormsRoutes);
+app.use('/api/google-contacts', googleContactsRoutes);
+app.use('/api/google-drive-case', googleDriveCaseRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
