@@ -51,7 +51,7 @@ export function TimeEntriesRunsheet({ matterId, onEntryUpdated }: TimeEntriesRun
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
-      setEntries(data);
+      setEntries(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error loading time entries:', error);
       toast.error('Failed to load time entries');

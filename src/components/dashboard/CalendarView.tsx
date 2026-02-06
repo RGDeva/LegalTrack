@@ -58,10 +58,9 @@ export function CalendarView() {
 
       if (res.ok) {
         const data = await res.json();
-        setEvents(data);
+        setEvents(Array.isArray(data) ? data : []);
       } else {
-        const error = await res.json();
-        console.error('Calendar error:', error);
+        console.error('Calendar error: non-ok response');
       }
     } catch (error) {
       console.error('Failed to fetch events:', error);
@@ -81,7 +80,7 @@ export function CalendarView() {
 
       if (res.ok) {
         const data = await res.json();
-        setCases(data);
+        setCases(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error('Failed to fetch cases:', error);

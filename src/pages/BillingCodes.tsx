@@ -52,7 +52,7 @@ const BillingCodes = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
-      setCodes(data);
+      setCodes(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error loading billing codes:', error);
       toast.error('Failed to load billing codes');

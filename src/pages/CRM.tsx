@@ -28,10 +28,11 @@ const CRM = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
-      setContacts(data);
+      const safeData = Array.isArray(data) ? data : [];
+      setContacts(safeData);
       
       // Convert contacts to leads for CRM pipeline using database CRM fields
-      const contactLeads: Lead[] = data.map((contact: any) => ({
+      const contactLeads: Lead[] = safeData.map((contact: any) => ({
         id: contact.id,
         contactId: contact.id,
         contact: {

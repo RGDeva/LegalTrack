@@ -55,7 +55,7 @@ export function TimerWidget() {
         
         if (res.ok) {
           const data = await res.json();
-          setCases(data);
+          setCases(Array.isArray(data) ? data : []);
         }
       } catch (error) {
         console.error('Failed to fetch cases:', error);
@@ -78,7 +78,8 @@ export function TimerWidget() {
         
         if (res.ok) {
           const data = await res.json();
-          setBillingCodes(data.filter((bc: BillingCode) => bc.active));
+          const safe = Array.isArray(data) ? data : [];
+          setBillingCodes(safe.filter((bc: BillingCode) => bc.active));
         }
       } catch (error) {
         console.error('Failed to fetch billing codes:', error);

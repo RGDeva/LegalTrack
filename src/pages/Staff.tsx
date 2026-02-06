@@ -30,7 +30,7 @@ export default function Staff() {
   const loadStaff = async () => {
     try {
       const data = await api.staff.getAll();
-      setStaff(data);
+      setStaff(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error loading staff:', error);
     }

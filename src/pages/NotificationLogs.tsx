@@ -67,8 +67,8 @@ const NotificationLogs = () => {
 
       if (res.ok) {
         const data = await res.json();
-        setLogs(data.notifications);
-        setPagination(prev => ({ ...prev, total: data.total }));
+        setLogs(Array.isArray(data.notifications) ? data.notifications : []);
+        setPagination(prev => ({ ...prev, total: data.total || 0 }));
       } else {
         toast.error('Failed to load notification logs');
       }

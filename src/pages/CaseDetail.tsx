@@ -64,7 +64,8 @@ const CaseDetail = () => {
         });
         if (res.ok) {
           const allTasks = await res.json();
-          const caseTasks = allTasks.filter((t: any) => t.caseId === id && t.status !== 'completed');
+          const safeAllTasks = Array.isArray(allTasks) ? allTasks : [];
+          const caseTasks = safeAllTasks.filter((t: any) => t.caseId === id && t.status !== 'completed');
           setTasks(caseTasks);
         }
       } catch (error) {

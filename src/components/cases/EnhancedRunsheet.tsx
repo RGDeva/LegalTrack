@@ -105,7 +105,7 @@ export function EnhancedRunsheet({ caseId }: EnhancedRunsheetProps) {
       
       if (res.ok) {
         const data = await res.json();
-        setEntries(data);
+        setEntries(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error('Error fetching runsheet:', error);

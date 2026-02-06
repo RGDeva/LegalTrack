@@ -61,10 +61,14 @@ const Dashboard = () => {
         fetch(`${API_URL}/invoices`, { headers })
       ]);
 
-      const cases = casesRes.ok ? await casesRes.json() : [];
-      const contacts = contactsRes.ok ? await contactsRes.json() : [];
-      const timeEntries = timeEntriesRes.ok ? await timeEntriesRes.json() : [];
-      const invoices = invoicesRes.ok ? await invoicesRes.json() : [];
+      const casesRaw = casesRes.ok ? await casesRes.json() : [];
+      const contactsRaw = contactsRes.ok ? await contactsRes.json() : [];
+      const timeEntriesRaw = timeEntriesRes.ok ? await timeEntriesRes.json() : [];
+      const invoicesRaw = invoicesRes.ok ? await invoicesRes.json() : [];
+      const cases = Array.isArray(casesRaw) ? casesRaw : [];
+      const contacts = Array.isArray(contactsRaw) ? contactsRaw : [];
+      const timeEntries = Array.isArray(timeEntriesRaw) ? timeEntriesRaw : [];
+      const invoices = Array.isArray(invoicesRaw) ? invoicesRaw : [];
 
       // Calculate active cases (status is Active or In Progress)
       const activeCases = cases.filter((c: any) => 

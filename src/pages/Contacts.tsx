@@ -35,7 +35,7 @@ const Contacts = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
-      setContacts(data);
+      setContacts(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error loading contacts:', error);
       sonnerToast.error('Failed to load contacts');

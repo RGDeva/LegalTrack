@@ -46,7 +46,7 @@ export function CaseComments({ caseId }: CaseCommentsProps) {
       });
       if (res.ok) {
         const data = await res.json();
-        setComments(data);
+        setComments(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error('Error loading comments:', error);

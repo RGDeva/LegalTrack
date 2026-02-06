@@ -60,7 +60,7 @@ export function CaseTimer({ caseId, caseNumber, onTimeEntryCreated }: CaseTimerP
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
-      setBillingCodes(data);
+      setBillingCodes(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error loading billing codes:', error);
     }

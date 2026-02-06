@@ -59,7 +59,7 @@ export function InvoiceBuilder() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
-      setCases(data);
+      setCases(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error loading cases:', error);
       toast.error('Failed to load cases');
@@ -84,7 +84,7 @@ export function InvoiceBuilder() {
         { headers: { 'Authorization': `Bearer ${token}` } }
       );
       const data = await res.json();
-      setEntries(data);
+      setEntries(Array.isArray(data) ? data : []);
       setSelectedEntries(new Set());
     } catch (error) {
       console.error('Error loading draft entries:', error);

@@ -71,10 +71,11 @@ export function DynamicDetailsForm({ caseId, caseType }: DynamicDetailsFormProps
       
       if (res.ok) {
         const data = await res.json();
-        setTemplates(data);
+        const safeData = Array.isArray(data) ? data : [];
+        setTemplates(safeData);
         
         // Auto-select default template if exists
-        const defaultTemplate = data.find((t: Template) => t.isDefault);
+        const defaultTemplate = safeData.find((t: Template) => t.isDefault);
         if (defaultTemplate && Object.keys(customFields).length === 0) {
           setSelectedTemplate(defaultTemplate);
         }

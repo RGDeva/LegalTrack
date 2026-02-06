@@ -66,7 +66,7 @@ const Invoices = () => {
         
         if (res.ok) {
           const data = await res.json();
-          setCases(data);
+          setCases(Array.isArray(data) ? data : []);
         }
       } catch (error) {
         console.error('Failed to fetch cases:', error);

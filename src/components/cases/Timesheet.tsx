@@ -47,7 +47,7 @@ const Timesheet = ({ caseId }: TimesheetProps) => {
       });
       if (res.ok) {
         const data = await res.json();
-        setTimeEntries(data);
+        setTimeEntries(Array.isArray(data) ? data : []);
       } else {
         setTimeEntries([]);
       }
