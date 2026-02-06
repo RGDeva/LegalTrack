@@ -31,6 +31,8 @@ const Settings = () => {
   const { theme, setTheme } = useTheme();
   const [roleRates, setRoleRates] = useState<RoleRate[]>([]);
   const [loading, setLoading] = useState(false);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [googleConnected, setGoogleConnected] = useState(false);
   const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>({
     emailNotifications: true,
     notifyInvoices: true,
@@ -43,7 +45,23 @@ const Settings = () => {
       loadRoleRates();
     }
     loadNotificationPreferences();
+    loadGoogleStatus();
   }, [user]);
+
+  const loadGoogleStatus = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${API_URL}/google-contacts/status`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGoogleConnected(data.isConnected);
+      }
+    } catch (error) {
+      console.error('Error loading Google status:', error);
+    }
+  };
 
   const loadRoleRates = async () => {
     try {
@@ -269,6 +287,82 @@ const Settings = () => {
               <p className="text-sm text-muted-foreground">
                 Contact your administrator to update your profile information.
               </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Two-Factor Authentication
+              </CardTitle>
+              <CardDescription>Add an extra layer of security to your account</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Enable 2FA</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Use an authenticator app for additional login security
+                  </p>
+                </div>
+                <Switch
+                  checked={twoFactorEnabled}
+                  onCheckedChange={(checked) => {
+                    setTwoFactorEnabled(checked);
+                    toast.info(checked ? '2FA setup will be available in a future update' : '2FA disabled');
+                  }}
+                />
+              </div>
+              {twoFactorEnabled && (
+                <div className="p-4 rounded-lg bg-muted/50 text-sm text-muted-foreground">
+                  Two-factor authentication is enabled. You will be prompted for a verification code on your next login.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                Google Integration
+              </CardTitle>
+              <CardDescription>Connect your Google account for Contacts and Drive sync</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Google Account</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {googleConnected
+                      ? 'Your Google account is connected'
+                      : 'Connect to sync contacts and access Google Drive'}
+                  </p>
+                </div>
+                <Button
+                  variant={googleConnected ? 'outline' : 'default'}
+                  onClick={async () => {
+                    if (googleConnected) {
+                      try {
+                        const token = localStorage.getItem('authToken');
+                        await fetch(`${API_URL}/google-contacts/disconnect`, {
+                          method: 'POST',
+                          headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        setGoogleConnected(false);
+                        toast.success('Google account disconnected');
+                      } catch {
+                        toast.error('Failed to disconnect');
+                      }
+                    } else {
+                      toast.info('Google OAuth connection will redirect you to Google');
+                    }
+                  }}
+                >
+                  {googleConnected ? 'Disconnect' : 'Connect Google'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

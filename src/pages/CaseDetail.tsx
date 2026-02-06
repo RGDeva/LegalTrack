@@ -13,6 +13,9 @@ import Documents from "@/components/cases/Documents";
 import Team from "@/components/cases/Team";
 import { CaseComments } from "@/components/cases/CaseComments";
 import { CaseTimer } from "@/components/cases/CaseTimer";
+import { TasksTab } from "@/components/cases/TasksTab";
+import { EnhancedRunsheet } from "@/components/cases/EnhancedRunsheet";
+import { DynamicDetailsForm } from "@/components/cases/DynamicDetailsForm";
 import { TimeEntriesRunsheet } from "@/components/time/TimeEntriesRunsheet";
 import { ManualTimeEntryDialog } from "@/components/time/ManualTimeEntryDialog";
 import { Contact, TimeEntry, Case } from "@/types";
@@ -173,12 +176,15 @@ const CaseDetail = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="home" className="space-y-6">
-        <TabsList className="grid w-full max-w-[900px] grid-cols-5">
+        <TabsList className="grid w-full max-w-[1100px] grid-cols-8">
           <TabsTrigger value="home">Home</TabsTrigger>
+          <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="runsheet">Runsheet</TabsTrigger>
+          <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
           <TabsTrigger value="timesheet">Timesheet</TabsTrigger>
+          <TabsTrigger value="comments">Comments</TabsTrigger>
         </TabsList>
 
         {/* Home Tab */}
@@ -444,9 +450,19 @@ const CaseDetail = () => {
           </div>
         </TabsContent>
 
+        {/* Tasks Tab */}
+        <TabsContent value="tasks">
+          <TasksTab caseId={id || ''} />
+        </TabsContent>
+
         {/* Runsheet Tab */}
         <TabsContent value="runsheet">
-          <Runsheet caseId={id || ''} />
+          <EnhancedRunsheet caseId={id || ''} />
+        </TabsContent>
+
+        {/* Details Tab */}
+        <TabsContent value="details">
+          <DynamicDetailsForm caseId={id || ''} caseType={caseData.type || 'general'} />
         </TabsContent>
 
         {/* Documents Tab */}
@@ -462,6 +478,11 @@ const CaseDetail = () => {
         {/* Timesheet Tab */}
         <TabsContent value="timesheet">
           <Timesheet caseId={id || ''} />
+        </TabsContent>
+
+        {/* Comments Tab */}
+        <TabsContent value="comments">
+          <CaseComments caseId={id || ''} />
         </TabsContent>
       </Tabs>
     </div>
