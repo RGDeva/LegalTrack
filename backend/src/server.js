@@ -14,6 +14,12 @@ console.log('GOOGLE_SERVICE_ACCOUNT_EMAIL exists:', !!process.env.GOOGLE_SERVICE
 console.log('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY exists:', !!process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY);
 console.log('GOOGLE_DRIVE_FOLDER_ID exists:', !!process.env.GOOGLE_DRIVE_FOLDER_ID);
 console.log('RESEND_API_KEY exists:', !!process.env.RESEND_API_KEY);
+console.log('GOOGLE_CLIENT_ID exists:', !!process.env.GOOGLE_CLIENT_ID);
+console.log('GOOGLE_CLIENT_ID prefix:', process.env.GOOGLE_CLIENT_ID?.substring(0, 15) || 'missing');
+console.log('GOOGLE_CLIENT_SECRET exists:', !!process.env.GOOGLE_CLIENT_SECRET);
+console.log('GOOGLE_CLIENT_SECRET prefix:', process.env.GOOGLE_CLIENT_SECRET?.substring(0, 10) || 'missing');
+console.log('GOOGLE_REDIRECT_URI:', process.env.GOOGLE_REDIRECT_URI || 'not set (using fallback)');
+console.log('FRONTEND_URL:', process.env.FRONTEND_URL || 'not set');
 
 // Allowed origins for CORS
 const allowedOrigins = [
