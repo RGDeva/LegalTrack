@@ -135,83 +135,85 @@ router.get('/callback', async (req, res) => {
       }
     });
 
-    // Auto-sync contacts after connecting
-    try {
-      const oauth2Client = getOAuth2Client(tokens);
-      const people = google.people({ version: 'v1', auth: oauth2Client });
-      const response = await people.people.connections.list({
-        resourceName: 'people/me',
-        pageSize: 1000,
-        personFields: 'names,emailAddresses,phoneNumbers,organizations,addresses'
-      });
-
-      const connections = response.data.connections || [];
-      let imported = 0;
-
-      for (const person of connections) {
-        try {
-          const name = person.names?.[0]?.displayName;
-          const email = person.emailAddresses?.[0]?.value;
-          const phone = person.phoneNumbers?.[0]?.value;
-          const organization = person.organizations?.[0]?.name;
-          const title = person.organizations?.[0]?.title;
-          const address = person.addresses?.[0]?.formattedValue;
-          const sourceId = person.resourceName;
-
-          if (!email) continue;
-
-          let existingContact = await prisma.contact.findFirst({ where: { googleSourceId: sourceId } });
-          if (!existingContact) {
-            existingContact = await prisma.contact.findFirst({ where: { email } });
-          }
-
-          if (existingContact) {
-            await prisma.contact.update({
-              where: { id: existingContact.id },
-              data: {
-                name: name || existingContact.name,
-                phone: phone || existingContact.phone,
-                organization: organization || existingContact.organization,
-                title: title || existingContact.title,
-                address: address || existingContact.address,
-                googleContactId: sourceId,
-                googleSourceId: sourceId,
-                googleSyncedAt: new Date(),
-                googleSyncDirection: 'one_way'
-              }
-            });
-          } else {
-            await prisma.contact.create({
-              data: {
-                name: name || email,
-                email,
-                phone,
-                organization,
-                title,
-                address,
-                googleContactId: sourceId,
-                googleSourceId: sourceId,
-                googleSyncedAt: new Date(),
-                googleSyncDirection: 'one_way',
-                leadSource: 'google_contacts',
-                category: 'imported'
-              }
-            });
-            imported++;
-          }
-        } catch (err) {
-          console.error('Error processing contact during auto-sync:', err);
-        }
-      }
-
-      console.log(`Auto-synced ${imported} new contacts from Google for user ${userId}`);
-    } catch (syncErr) {
-      console.error('Auto-sync after connect failed (non-fatal):', syncErr.message);
-    }
-
-    // Redirect back to the frontend settings page with success
+    // Redirect immediately so user isn't stuck on loading screen
     const frontendUrl = process.env.FRONTEND_URL || 'https://legal-track-nine.vercel.app';
     res.redirect(`${frontendUrl}/settings?google=connected`);
+
+    // Auto-sync contacts in the background (non-blocking)
+    (async () => {
+      try {
+        const oauth2Client = getOAuth2Client(tokens);
+        const people = google.people({ version: 'v1', auth: oauth2Client });
+        const response = await people.people.connections.list({
+          resourceName: 'people/me',
+          pageSize: 1000,
+          personFields: 'names,emailAddresses,phoneNumbers,organizations,addresses'
+        });
+
+        const connections = response.data.connections || [];
+        let imported = 0;
+
+        for (const person of connections) {
+          try {
+            const name = person.names?.[0]?.displayName;
+            const email = person.emailAddresses?.[0]?.value;
+            const phone = person.phoneNumbers?.[0]?.value;
+            const organization = person.organizations?.[0]?.name;
+            const title = person.organizations?.[0]?.title;
+            const address = person.addresses?.[0]?.formattedValue;
+            const sourceId = person.resourceName;
+
+            if (!email) continue;
+
+            let existingContact = await prisma.contact.findFirst({ where: { googleSourceId: sourceId } });
+            if (!existingContact) {
+              existingContact = await prisma.contact.findFirst({ where: { email } });
+            }
+
+            if (existingContact) {
+              await prisma.contact.update({
+                where: { id: existingContact.id },
+                data: {
+                  name: name || existingContact.name,
+                  phone: phone || existingContact.phone,
+                  organization: organization || existingContact.organization,
+                  title: title || existingContact.title,
+                  address: address || existingContact.address,
+                  googleContactId: sourceId,
+                  googleSourceId: sourceId,
+                  googleSyncedAt: new Date(),
+                  googleSyncDirection: 'one_way'
+                }
+              });
+            } else {
+              await prisma.contact.create({
+                data: {
+                  name: name || email,
+                  email,
+                  phone,
+                  organization,
+                  title,
+                  address,
+                  googleContactId: sourceId,
+                  googleSourceId: sourceId,
+                  googleSyncedAt: new Date(),
+                  googleSyncDirection: 'one_way',
+                  leadSource: 'google_contacts',
+                  category: 'imported'
+                }
+              });
+              imported++;
+            }
+          } catch (err) {
+            console.error('Error processing contact during auto-sync:', err);
+          }
+        }
+
+        console.log(`Auto-synced ${imported} new contacts from Google for user ${userId}`);
+      } catch (syncErr) {
+        console.error('Auto-sync after connect failed (non-fatal):', syncErr.message);
+      }
+    })();
   } catch (error) {
     console.error('Error in Google callback:', error);
     console.error('Error stack:', error.stack);
