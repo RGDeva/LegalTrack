@@ -74,6 +74,11 @@ router.get('/callback', async (req, res) => {
   try {
     const { code, state } = req.query;
 
+    console.log('Google OAuth callback received');
+    console.log('Has code:', !!code);
+    console.log('Has state:', !!state);
+    console.log('Redirect URI being used:', GOOGLE_REDIRECT_URI);
+
     if (!code) {
       return res.status(400).send('Authorization code missing');
     }
@@ -85,17 +90,40 @@ router.get('/callback', async (req, res) => {
       const decoded = jwt.default.verify(state, process.env.JWT_SECRET || 'fallback-secret');
       userId = decoded.id;
     } catch (err) {
+      console.error('JWT verification failed:', err.message);
       return res.status(401).send('Invalid or expired session. Please try connecting again.');
     }
 
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      GOOGLE_REDIRECT_URI
-    );
+    console.log('User ID from JWT:', userId);
 
-    // Exchange code for tokens
-    const { tokens } = await oauth2Client.getToken(code);
+    // Exchange code for tokens using direct HTTP request
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: GOOGLE_REDIRECT_URI,
+        grant_type: 'authorization_code'
+      }).toString()
+    });
+
+    const tokenData = await tokenResponse.json();
+    console.log('Token exchange response status:', tokenResponse.status);
+
+    if (!tokenResponse.ok) {
+      console.error('Token exchange failed:', JSON.stringify(tokenData));
+      throw new Error(tokenData.error_description || tokenData.error || 'Token exchange failed');
+    }
+
+    const tokens = {
+      access_token: tokenData.access_token,
+      refresh_token: tokenData.refresh_token,
+      expiry_date: tokenData.expires_in ? Date.now() + (tokenData.expires_in * 1000) : null
+    };
+
+    console.log('Token exchange successful, has refresh_token:', !!tokens.refresh_token);
 
     // Save tokens to user
     await prisma.user.update({
@@ -109,7 +137,7 @@ router.get('/callback', async (req, res) => {
 
     // Auto-sync contacts after connecting
     try {
-      oauth2Client.setCredentials(tokens);
+      const oauth2Client = getOAuth2Client(tokens);
       const people = google.people({ version: 'v1', auth: oauth2Client });
       const response = await people.people.connections.list({
         resourceName: 'people/me',
