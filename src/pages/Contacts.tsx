@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Plus, Search, Filter, Phone, Mail, Building2, User, RefreshCw, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Plus, Search, Filter, Phone, Mail, Building2, User, RefreshCw, Loader2, LayoutGrid, List, Trash2, Upload, FileSpreadsheet } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Contact } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
@@ -21,6 +23,12 @@ const Contacts = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [googleConnected, setGoogleConnected] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(true);
 
@@ -110,6 +118,84 @@ const Contacts = () => {
   const handleContactUpdated = () => {
     loadContacts();
   };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredContacts.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredContacts.map(c => c.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${API_URL}/contacts/bulk-delete`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ ids: Array.from(selectedIds) })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        sonnerToast.success(`${data.count} contacts deleted`);
+        setSelectedIds(new Set());
+        loadContacts();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        sonnerToast.error(err.error || 'Failed to delete contacts');
+      }
+    } catch (error) {
+      console.error('Error bulk deleting:', error);
+      sonnerToast.error('Failed to delete contacts');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`${API_URL}/contacts/import`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      const data = await res.json();
+      if (res.ok) {
+        sonnerToast.success(`${data.imported} contacts imported, ${data.skipped} skipped`);
+        setIsImportDialogOpen(false);
+        loadContacts();
+      } else {
+        sonnerToast.error(data.error || 'Import failed');
+      }
+    } catch (error) {
+      console.error('Error importing contacts:', error);
+      sonnerToast.error('Failed to import contacts');
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const { toast } = useToast();
 
@@ -227,7 +313,16 @@ const Contacts = () => {
           <h1 className="text-3xl font-bold">Contacts</h1>
           <p className="text-muted-foreground">Manage your contacts and connections</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {selectedIds.size > 0 && (
+            <Button variant="destructive" onClick={handleBulkDelete} disabled={bulkDeleting}>
+              {bulkDeleting ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</>
+              ) : (
+                <><Trash2 className="h-4 w-4 mr-2" />Delete ({selectedIds.size})</>
+              )}
+            </Button>
+          )}
           {googleConnected ? (
             <Button variant="outline" onClick={syncGoogleContacts} disabled={syncing}>
               {syncing ? (
@@ -242,6 +337,55 @@ const Contacts = () => {
               Connect Google
             </Button>
           )}
+          <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Upload className="h-4 w-4 mr-2" />
+                Import
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Import Contacts</DialogTitle>
+                <DialogDescription>
+                  Upload a CSV or Excel file to import contacts. The file should have columns like: name, email, phone, organization, title, category, address, notes.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="border-2 border-dashed rounded-lg p-8 text-center space-y-4">
+                  <FileSpreadsheet className="h-12 w-12 mx-auto text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Drop your file here or click to browse</p>
+                    <p className="text-xs text-muted-foreground mt-1">Supports .csv, .xls, .xlsx (max 5MB)</p>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv,.xls,.xlsx"
+                    onChange={handleImportFile}
+                    className="hidden"
+                    id="import-file"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={importing}
+                  >
+                    {importing ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Importing...</>
+                    ) : (
+                      <>Choose File</>
+                    )}
+                  </Button>
+                </div>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p className="font-medium">Supported column headers:</p>
+                  <p>name, email, phone, organization/company, title, category, address, notes</p>
+                  <p>Duplicate emails will be skipped automatically.</p>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="gradient">
@@ -381,69 +525,153 @@ const Contacts = () => {
             <SelectItem value="imported">Imported (Google)</SelectItem>
           </SelectContent>
         </Select>
+        <div className="flex border rounded-md">
+          <Button
+            variant={viewMode === 'grid' ? 'default' : 'ghost'}
+            size="icon"
+            onClick={() => setViewMode('grid')}
+            className="rounded-r-none"
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === 'list' ? 'default' : 'ghost'}
+            size="icon"
+            onClick={() => setViewMode('list')}
+            className="rounded-l-none"
+          >
+            <List className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredContacts.map((contact) => (
-          <Card key={contact.id} className="hover:shadow-lg transition-shadow cursor-pointer">
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-lg bg-muted">
-                    {getCategoryIcon(contact.category)}
+      {viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredContacts.map((contact) => (
+            <Card key={contact.id} className={`hover:shadow-lg transition-shadow cursor-pointer ${selectedIds.has(contact.id) ? 'ring-2 ring-primary' : ''}`}>
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      checked={selectedIds.has(contact.id)}
+                      onCheckedChange={() => toggleSelect(contact.id)}
+                      className="mt-1"
+                    />
+                    <div className="p-2 rounded-lg bg-muted">
+                      {getCategoryIcon(contact.category)}
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">{contact.name}</CardTitle>
+                      {contact.title && (
+                        <p className="text-sm text-muted-foreground">{contact.title}</p>
+                      )}
+                      {contact.organization && (
+                        <p className="text-sm font-medium text-muted-foreground">{contact.organization}</p>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <CardTitle className="text-lg">{contact.name}</CardTitle>
-                    {contact.title && (
-                      <p className="text-sm text-muted-foreground">{contact.title}</p>
-                    )}
-                    {contact.organization && (
-                      <p className="text-sm font-medium text-muted-foreground">{contact.organization}</p>
-                    )}
+                  {getCategoryBadge(contact.category)}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex gap-1 pb-2 border-b">
+                    <EditContactDialog contact={contact} onContactUpdated={handleContactUpdated} />
+                    <DeleteContactDialog contact={contact} onContactDeleted={handleContactUpdated} />
                   </div>
-                </div>
-                {getCategoryBadge(contact.category)}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex gap-1 pb-2 border-b">
-                  <EditContactDialog contact={contact} onContactUpdated={handleContactUpdated} />
-                  <DeleteContactDialog contact={contact} onContactDeleted={handleContactUpdated} />
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Mail className="h-3 w-3 text-muted-foreground" />
-                  <a href={`mailto:${contact.email}`} className="text-primary hover:underline">
-                    {contact.email}
-                  </a>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Phone className="h-3 w-3 text-muted-foreground" />
-                  <a href={`tel:${contact.phone}`} className="text-primary hover:underline">
-                    {contact.phone}
-                  </a>
-                </div>
-                {contact.mobile && (
                   <div className="flex items-center gap-2 text-sm">
-                    <Phone className="h-3 w-3 text-muted-foreground" />
-                    <a href={`tel:${contact.mobile}`} className="text-primary hover:underline">
-                      {contact.mobile} (Mobile)
+                    <Mail className="h-3 w-3 text-muted-foreground" />
+                    <a href={`mailto:${contact.email}`} className="text-primary hover:underline">
+                      {contact.email}
                     </a>
                   </div>
-                )}
-                {contact.address && (
-                  <p className="text-sm text-muted-foreground">{contact.address}</p>
-                )}
-                {contact.lastContact && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Last contact: {contact.lastContact}
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Phone className="h-3 w-3 text-muted-foreground" />
+                    <a href={`tel:${contact.phone}`} className="text-primary hover:underline">
+                      {contact.phone}
+                    </a>
+                  </div>
+                  {contact.mobile && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Phone className="h-3 w-3 text-muted-foreground" />
+                      <a href={`tel:${contact.mobile}`} className="text-primary hover:underline">
+                        {contact.mobile} (Mobile)
+                      </a>
+                    </div>
+                  )}
+                  {contact.address && (
+                    <p className="text-sm text-muted-foreground">{contact.address}</p>
+                  )}
+                  {contact.lastContact && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Last contact: {contact.lastContact}
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="border rounded-lg">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={filteredContacts.length > 0 && selectedIds.size === filteredContacts.length}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>Organization</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead className="w-24">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredContacts.map((contact) => (
+                <TableRow key={contact.id} className={selectedIds.has(contact.id) ? 'bg-muted/50' : ''}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.has(contact.id)}
+                      onCheckedChange={() => toggleSelect(contact.id)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <p className="font-medium">{contact.name}</p>
+                      {contact.title && <p className="text-xs text-muted-foreground">{contact.title}</p>}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <a href={`mailto:${contact.email}`} className="text-primary hover:underline text-sm">
+                      {contact.email}
+                    </a>
+                  </TableCell>
+                  <TableCell>
+                    {contact.phone && (
+                      <a href={`tel:${contact.phone}`} className="text-primary hover:underline text-sm">
+                        {contact.phone}
+                      </a>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-sm">{contact.organization || '—'}</TableCell>
+                  <TableCell>{getCategoryBadge(contact.category)}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <EditContactDialog contact={contact} onContactUpdated={handleContactUpdated} />
+                      <DeleteContactDialog contact={contact} onContactDeleted={handleContactUpdated} />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       {filteredContacts.length === 0 && (
         <div className="text-center py-12">
