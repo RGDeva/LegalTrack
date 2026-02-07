@@ -40,7 +40,7 @@ const ContactSelector: React.FC<ContactSelectorProps> = ({
     try {
       setLoading(true);
       const token = localStorage.getItem('authToken');
-      const res = await fetch(`${API_URL}/contacts`, {
+      const res = await fetch(`${API_URL}/contacts?all=true`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {

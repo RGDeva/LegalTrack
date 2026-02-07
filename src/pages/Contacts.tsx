@@ -29,6 +29,10 @@ const Contacts = () => {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalContacts, setTotalContacts] = useState(0);
+  const contactsPerPage = 50;
 
   const [loading, setLoading] = useState(true);
 
@@ -36,7 +40,7 @@ const Contacts = () => {
   useEffect(() => {
     loadContacts();
     checkGoogleStatus();
-  }, []);
+  }, [currentPage]);
 
   const checkGoogleStatus = async () => {
     try {
@@ -102,11 +106,22 @@ const Contacts = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('authToken');
-      const res = await fetch(`${API_URL}/contacts`, {
+      const res = await fetch(`${API_URL}/contacts?page=${currentPage}&limit=${contactsPerPage}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
-      setContacts(Array.isArray(data) ? data : []);
+      if (Array.isArray(data)) {
+        // Legacy response format
+        setContacts(data);
+        setTotalPages(1);
+        setTotalContacts(data.length);
+      } else if (data.contacts) {
+        setContacts(Array.isArray(data.contacts) ? data.contacts : []);
+        setTotalPages(data.pagination?.totalPages || 1);
+        setTotalContacts(data.pagination?.total || 0);
+      } else {
+        setContacts([]);
+      }
     } catch (error) {
       console.error('Error loading contacts:', error);
       sonnerToast.error('Failed to load contacts');
@@ -676,6 +691,51 @@ const Contacts = () => {
       {filteredContacts.length === 0 && (
         <div className="text-center py-12">
           <p className="text-muted-foreground">No contacts found matching your search criteria.</p>
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4 border-t">
+          <p className="text-sm text-muted-foreground">
+            Showing {((currentPage - 1) * contactsPerPage) + 1}–{Math.min(currentPage * contactsPerPage, totalContacts)} of {totalContacts} contacts
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage <= 1}
+              onClick={() => { setCurrentPage(1); setSelectedIds(new Set()); }}
+            >
+              First
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage <= 1}
+              onClick={() => { setCurrentPage(p => p - 1); setSelectedIds(new Set()); }}
+            >
+              Previous
+            </Button>
+            <span className="flex items-center px-3 text-sm">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= totalPages}
+              onClick={() => { setCurrentPage(p => p + 1); setSelectedIds(new Set()); }}
+            >
+              Next
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= totalPages}
+              onClick={() => { setCurrentPage(totalPages); setSelectedIds(new Set()); }}
+            >
+              Last
+            </Button>
+          </div>
         </div>
       )}
     </div>

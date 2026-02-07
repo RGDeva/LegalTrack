@@ -37,7 +37,7 @@ export function RecentActivity() {
       // Fetch recent cases, contacts, time entries, and invoices
       const [casesRes, contactsRes, timeEntriesRes, invoicesRes] = await Promise.all([
         fetch(`${API_URL}/cases`, { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch(`${API_URL}/contacts`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API_URL}/contacts?all=true`, { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch(`${API_URL}/time-entries`, { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch(`${API_URL}/invoices`, { headers: { 'Authorization': `Bearer ${token}` } })
       ]);

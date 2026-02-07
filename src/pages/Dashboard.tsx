@@ -56,7 +56,7 @@ const Dashboard = () => {
       // Fetch all data in parallel
       const [casesRes, contactsRes, timeEntriesRes, invoicesRes] = await Promise.all([
         fetch(`${API_URL}/cases`, { headers }),
-        fetch(`${API_URL}/contacts`, { headers }),
+        fetch(`${API_URL}/contacts?all=true`, { headers }),
         fetch(`${API_URL}/time-entries`, { headers }),
         fetch(`${API_URL}/invoices`, { headers })
       ]);
