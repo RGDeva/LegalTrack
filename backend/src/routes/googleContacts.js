@@ -11,11 +11,13 @@ const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI ||
     ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/api/google-contacts/callback`
     : 'https://legaltrack-production.up.railway.app/api/google-contacts/callback');
 
-// Debug endpoint to check Google config (no secrets exposed)
-router.get('/debug-config', authenticateToken, async (req, res) => {
+// Debug endpoint to check Google config (no secrets exposed, no auth required for debugging)
+router.get('/debug-config', async (req, res) => {
   res.json({
     hasClientId: !!process.env.GOOGLE_CLIENT_ID,
+    clientIdPrefix: process.env.GOOGLE_CLIENT_ID?.substring(0, 15) || 'missing',
     hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+    secretPrefix: process.env.GOOGLE_CLIENT_SECRET?.substring(0, 10) || 'missing',
     hasRedirectUri: !!process.env.GOOGLE_REDIRECT_URI,
     resolvedRedirectUri: GOOGLE_REDIRECT_URI,
     hasFrontendUrl: !!process.env.FRONTEND_URL,
