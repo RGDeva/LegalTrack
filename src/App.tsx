@@ -26,6 +26,7 @@ import SignIn from "./pages/SignIn";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import AcceptInvite from "./pages/AcceptInvite";
+import AiAssistant from "./pages/AiAssistant";
 import NotFound from "./pages/NotFound";
 import LegalTrackLandingPage from "./components/ui/legaltrack-landing-page";
 import { LoginDialog } from "./components/auth/LoginDialog";
@@ -77,6 +78,7 @@ function App() {
                 <Route path="/billing-codes" element={<ProtectedRoute><Layout><BillingCodes /></Layout></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><Layout><Settings /></Layout></ProtectedRoute>} />
                 <Route path="/notifications" element={<ProtectedRoute><Layout><NotificationLogs /></Layout></ProtectedRoute>} />
+                <Route path="/ai-assistant" element={<ProtectedRoute><Layout><AiAssistant /></Layout></ProtectedRoute>} />
                 
                 {/* 404 */}
                 <Route path="*" element={<NotFound />} />

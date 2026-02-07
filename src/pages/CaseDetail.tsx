@@ -17,6 +17,7 @@ import { TasksTab } from "@/components/cases/TasksTab";
 import { EnhancedRunsheet } from "@/components/cases/EnhancedRunsheet";
 import { DynamicDetailsForm } from "@/components/cases/DynamicDetailsForm";
 import { VoiceCapture } from "@/components/cases/VoiceCapture";
+import { CaseAiPanel } from "@/components/cases/CaseAiPanel";
 import { TimeEntriesRunsheet } from "@/components/time/TimeEntriesRunsheet";
 import { ManualTimeEntryDialog } from "@/components/time/ManualTimeEntryDialog";
 import { Contact, TimeEntry, Case } from "@/types";
@@ -493,6 +494,9 @@ const CaseDetail = () => {
           <CaseComments caseId={id || ''} />
         </TabsContent>
       </Tabs>
+
+      {/* Contextual AI Assistant */}
+      <CaseAiPanel caseId={id || ''} caseNumber={caseData.caseNumber} />
     </div>
   );
 };

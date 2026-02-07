@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Briefcase, Users, Clock, UserCheck, FileText, Calendar, Receipt, Settings, TrendingUp, Shield, Code } from "lucide-react";
+import { LayoutDashboard, Briefcase, Users, Clock, UserCheck, FileText, Calendar, Receipt, Settings, TrendingUp, Shield, Code, Bot } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 const items = [{
@@ -38,6 +38,10 @@ const items = [{
   title: "Invoices",
   url: "/invoices",
   icon: Receipt
+}, {
+  title: "AI Assistant",
+  url: "/ai-assistant",
+  icon: Bot
 }, {
   title: "Settings",
   url: "/settings",
