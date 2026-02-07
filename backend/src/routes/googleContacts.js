@@ -183,8 +183,14 @@ router.get('/callback', async (req, res) => {
     res.redirect(`${frontendUrl}/settings?google=connected`);
   } catch (error) {
     console.error('Error in Google callback:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      response: error.response?.data
+    });
     const frontendUrl = process.env.FRONTEND_URL || 'https://legal-track-nine.vercel.app';
-    res.redirect(`${frontendUrl}/settings?google=error`);
+    res.redirect(`${frontendUrl}/settings?google=error&msg=${encodeURIComponent(error.message)}`);
   }
 });
 

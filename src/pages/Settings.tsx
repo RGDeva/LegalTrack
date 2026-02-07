@@ -57,7 +57,8 @@ const Settings = () => {
       // Clean up URL
       window.history.replaceState({}, '', '/settings');
     } else if (googleStatus === 'error') {
-      toast.error('Failed to connect Google account. Please try again.');
+      const errorMsg = params.get('msg');
+      toast.error(`Failed to connect: ${errorMsg || 'Unknown error. Please try again.'}`);
       window.history.replaceState({}, '', '/settings');
     }
   }, [user]);
