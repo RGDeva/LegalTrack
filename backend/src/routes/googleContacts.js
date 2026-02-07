@@ -6,6 +6,7 @@ import { authenticateToken } from '../middleware/auth.js';
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// Google OAuth redirect URI with fallback
 const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || 
   (process.env.RAILWAY_PUBLIC_DOMAIN 
     ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/api/google-contacts/callback`
