@@ -242,6 +242,21 @@ const Invoices = () => {
 
       {/* Invoices Table */}
       <div className="rounded-lg border bg-card">
+        {invoices.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 px-4">
+            <div className="p-4 bg-muted rounded-full mb-4">
+              <FileText className="h-10 w-10 text-muted-foreground/60" />
+            </div>
+            <h3 className="text-lg font-semibold mb-1">No invoices yet</h3>
+            <p className="text-sm text-muted-foreground text-center max-w-sm mb-4">
+              Create your first invoice or generate one from billable time entries.
+            </p>
+            <Button onClick={handleCreateInvoice}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Invoice
+            </Button>
+          </div>
+        ) : (
         <Table>
           <TableHeader>
             <TableRow>
@@ -313,6 +328,7 @@ const Invoices = () => {
             ))}
           </TableBody>
         </Table>
+        )}
       </div>
 
       <InvoiceDialog

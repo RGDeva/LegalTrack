@@ -448,6 +448,33 @@ model AiAuditLog {
   @@index([createdAt])
 }
 
+model Event {
+  id            String    @id @default(cuid())
+  title         String
+  description   String?   @db.Text
+  startTime     DateTime
+  endTime       DateTime
+  allDay        Boolean   @default(false)
+  location      String?
+  type          String    @default("event") // 'event', 'hearing', 'deadline', 'meeting', 'reminder'
+  color         String?   // hex color for calendar display
+  caseId        String?
+  assignedToId  String?
+  createdById   String
+  recurrence    String?   // 'none', 'daily', 'weekly', 'monthly', 'yearly'
+  reminderMinutes Int?    // minutes before event to send reminder
+  googleEventId String?   // linked Google Calendar event ID
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([startTime])
+  @@index([endTime])
+  @@index([caseId])
+  @@index([assignedToId])
+  @@index([createdById])
+  @@index([type])
+}
+
 model LeadFormSubmission {
   id            String    @id @default(cuid())
   name          String

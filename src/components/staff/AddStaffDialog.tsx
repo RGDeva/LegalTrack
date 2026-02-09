@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { User } from '@/types';
+import { API_URL } from '@/lib/api-url';
 
 interface AddStaffDialogProps {
   onStaffAdded?: () => void;
@@ -50,24 +51,31 @@ export function AddStaffDialog({ onStaffAdded }: AddStaffDialogProps) {
         return;
       }
 
-      const newStaff: User = {
-        id: `staff-${Date.now()}`,
-        name: formData.name,
-        email: formData.email,
-        role: formData.role as User['role'],
-        firmId: 'firm1',
-        phone: formData.phone,
-        department: formData.department,
-        barNumber: formData.barNumber || undefined,
-        billableRate: formData.billableRate ? parseFloat(formData.billableRate) : undefined,
-        status: 'active',
-        joinDate: new Date().toISOString().split('T')[0],
-      };
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${API_URL}/staff`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          phone: formData.phone || null,
+          department: formData.department,
+          barNumber: formData.barNumber || null,
+          billableRate: formData.billableRate ? parseFloat(formData.billableRate) : null,
+          status: 'active',
+          joinDate: new Date(),
+          password: 'changeme123',
+        })
+      });
 
-      const existingStaff = localStorage.getItem('staff');
-      const staff = existingStaff ? JSON.parse(existingStaff) : [];
-      staff.push(newStaff);
-      localStorage.setItem('staff', JSON.stringify(staff));
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to add staff member');
+      }
 
       toast.success('Staff member added successfully');
       

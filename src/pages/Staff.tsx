@@ -11,17 +11,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Mail, Phone, Calendar } from "lucide-react";
+import { Search, Mail, Phone, Calendar, Users } from "lucide-react";
 import { AddStaffDialog } from "@/components/staff/AddStaffDialog";
 import { EditStaffDialog } from "@/components/staff/EditStaffDialog";
 import { DeleteStaffDialog } from "@/components/staff/DeleteStaffDialog";
 import { api } from "@/services/api";
+import { EmptyState } from "@/components/EmptyState";
+import { TableSkeleton } from "@/components/LoadingSkeleton";
 
 export default function Staff() {
   const [staff, setStaff] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadStaff();
@@ -29,10 +32,13 @@ export default function Staff() {
 
   const loadStaff = async () => {
     try {
+      setLoading(true);
       const data = await api.staff.getAll();
       setStaff(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error loading staff:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -99,6 +105,21 @@ export default function Staff() {
           </div>
         </CardHeader>
         <CardContent>
+          {loading ? (
+            <TableSkeleton rows={6} />
+          ) : filteredStaff.length === 0 ? (
+            staff.length === 0 ? (
+              <EmptyState
+                icon={Users}
+                title="No staff members yet"
+                description="Add your first team member to get started with staff management."
+              />
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">No staff members match your search or filters.</p>
+              </div>
+            )
+          ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredStaff.map((staff) => (
               <Card key={staff.id} className="hover:shadow-lg transition-shadow">
@@ -153,6 +174,7 @@ export default function Staff() {
               </Card>
             ))}
           </div>
+          )}
         </CardContent>
       </Card>
     </div>

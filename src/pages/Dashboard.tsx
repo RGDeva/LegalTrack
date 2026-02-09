@@ -1,49 +1,62 @@
 import { useState, useEffect } from "react";
-import { Briefcase, Users, Clock, DollarSign, FileText, Calendar, Timer } from "lucide-react";
+import { Briefcase, Users, Clock, DollarSign, FileText, Calendar, Timer, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { CaseList } from "@/components/cases/CaseList";
 import { CalendarView } from "@/components/dashboard/CalendarView";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { API_URL } from "@/lib/api-url";
 
 interface DashboardStats {
   activeCases: number;
-  totalClients: number;
+  totalCases: number;
+  totalContacts: number;
   monthlyBillableHours: number;
+  monthlyRevenue: number;
   amountReadyToInvoice: number;
+  unbilledEntriesCount: number;
   pendingInvoicesAmount: number;
+  pendingInvoicesCount: number;
   activeTimers: number;
+  overdueTasks: number;
 }
 
 interface Deadline {
   id: string;
   title: string;
   description: string;
-  date: Date;
+  date: string;
   type: 'hearing' | 'task' | 'deadline';
+  priority?: string;
+  assignedTo?: string;
 }
 
 const Dashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
     activeCases: 0,
-    totalClients: 0,
+    totalCases: 0,
+    totalContacts: 0,
     monthlyBillableHours: 0,
+    monthlyRevenue: 0,
     amountReadyToInvoice: 0,
+    unbilledEntriesCount: 0,
     pendingInvoicesAmount: 0,
-    activeTimers: 0
+    pendingInvoicesCount: 0,
+    activeTimers: 0,
+    overdueTasks: 0
   });
   const [deadlines, setDeadlines] = useState<Deadline[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadDashboardStats();
+    loadDashboardData();
   }, []);
 
-  const loadDashboardStats = async () => {
+  const loadDashboardData = async () => {
     try {
       const token = localStorage.getItem('authToken');
       if (!token) {
@@ -53,130 +66,22 @@ const Dashboard = () => {
 
       const headers = { 'Authorization': `Bearer ${token}` };
 
-      // Fetch all data in parallel
-      const [casesRes, contactsRes, timeEntriesRes, invoicesRes] = await Promise.all([
-        fetch(`${API_URL}/cases`, { headers }),
-        fetch(`${API_URL}/contacts?all=true`, { headers }),
-        fetch(`${API_URL}/time-entries`, { headers }),
-        fetch(`${API_URL}/invoices`, { headers })
+      const [statsRes, deadlinesRes] = await Promise.all([
+        fetch(`${API_URL}/dashboard/stats`, { headers }),
+        fetch(`${API_URL}/dashboard/deadlines`, { headers })
       ]);
 
-      const casesRaw = casesRes.ok ? await casesRes.json() : [];
-      const contactsRaw = contactsRes.ok ? await contactsRes.json() : [];
-      const timeEntriesRaw = timeEntriesRes.ok ? await timeEntriesRes.json() : [];
-      const invoicesRaw = invoicesRes.ok ? await invoicesRes.json() : [];
-      const cases = Array.isArray(casesRaw) ? casesRaw : [];
-      const contacts = Array.isArray(contactsRaw) ? contactsRaw : [];
-      const timeEntries = Array.isArray(timeEntriesRaw) ? timeEntriesRaw : [];
-      const invoices = Array.isArray(invoicesRaw) ? invoicesRaw : [];
-
-      // Calculate active cases (status is Active or In Progress)
-      const activeCases = cases.filter((c: any) => 
-        c.status === 'Active' || c.status === 'In Progress' || c.status === 'Open'
-      ).length;
-
-      // Total clients (contacts that are clients)
-      const totalClients = contacts.filter((c: any) => 
-        c.type === 'Client' || c.type === 'client'
-      ).length || contacts.length;
-
-      // Calculate billable hours for current month
-      const currentMonth = new Date().getMonth();
-      const currentYear = new Date().getFullYear();
-      
-      const monthlyBillableHours = timeEntries
-        .filter((entry: any) => {
-          if (!entry.createdAt) return false;
-          const entryDate = new Date(entry.createdAt);
-          return entryDate.getMonth() === currentMonth && 
-                 entryDate.getFullYear() === currentYear &&
-                 entry.durationMinutesBilled > 0;
-        })
-        .reduce((total: number, entry: any) => {
-          const minutes = entry.durationMinutesBilled || 0;
-          return total + (minutes / 60);
-        }, 0);
-
-      // Calculate amount ready to invoice (unbilled time entries with billed minutes)
-      const amountReadyToInvoice = timeEntries
-        .filter((entry: any) => 
-          !entry.invoiceId && 
-          entry.durationMinutesBilled > 0 &&
-          entry.amountCents > 0
-        )
-        .reduce((total: number, entry: any) => {
-          const amountDollars = (entry.amountCents || 0) / 100;
-          return total + amountDollars;
-        }, 0);
-
-      // Calculate pending invoices (unpaid)
-      const pendingInvoicesAmount = invoices
-        .filter((inv: any) => inv.status === 'Pending' || inv.status === 'Sent' || inv.status === 'Overdue')
-        .reduce((total: number, inv: any) => total + (inv.amount || inv.total || 0), 0);
-
-      // Count active timers (entries with startedAt but no endedAt)
-      const activeTimers = timeEntries.filter((entry: any) => 
-        entry.startedAt && !entry.endedAt
-      ).length;
-
-      setStats({
-        activeCases,
-        totalClients,
-        monthlyBillableHours,
-        amountReadyToInvoice,
-        pendingInvoicesAmount,
-        activeTimers
-      });
-
-      // Extract upcoming deadlines from cases with nextHearing dates
-      const upcomingDeadlines: Deadline[] = [];
-      const nowDate = new Date();
-      
-      cases.forEach((c: any) => {
-        if (c.nextHearing) {
-          const hearingDate = new Date(c.nextHearing);
-          if (hearingDate.getTime() >= nowDate.getTime()) {
-            upcomingDeadlines.push({
-              id: `hearing-${c.id}`,
-              title: 'Court Hearing',
-              description: `${c.title}`,
-              date: hearingDate,
-              type: 'hearing'
-            });
-          }
-        }
-      });
-
-      // Also fetch tasks for deadlines
-      try {
-        const tasksRes = await fetch(`${API_URL}/tasks`, { headers });
-        if (tasksRes.ok) {
-          const tasks = await tasksRes.json();
-          tasks.forEach((task: any) => {
-            if (task.dueDate && task.status !== 'completed') {
-              const dueDate = new Date(task.dueDate);
-              if (dueDate.getTime() >= nowDate.getTime()) {
-                upcomingDeadlines.push({
-                  id: `task-${task.id}`,
-                  title: task.title || 'Task Due',
-                  description: task.description || task.caseName || '',
-                  date: dueDate,
-                  type: 'task'
-                });
-              }
-            }
-          });
-        }
-      } catch (e) {
-        console.log('Tasks fetch optional:', e);
+      if (statsRes.ok) {
+        const data = await statsRes.json();
+        setStats(data);
       }
 
-      // Sort by date and take first 5
-      upcomingDeadlines.sort((a, b) => a.date.getTime() - b.date.getTime());
-      setDeadlines(upcomingDeadlines.slice(0, 5));
-
+      if (deadlinesRes.ok) {
+        const data = await deadlinesRes.json();
+        setDeadlines(Array.isArray(data) ? data : []);
+      }
     } catch (error) {
-      console.error('Error loading dashboard stats:', error);
+      console.error('Error loading dashboard:', error);
     } finally {
       setLoading(false);
     }
@@ -193,38 +98,59 @@ const Dashboard = () => {
         <StatCard
           title="Active Cases"
           value={loading ? "..." : stats.activeCases}
-          subtitle={stats.activeCases > 0 ? `${stats.activeCases} case${stats.activeCases > 1 ? 's' : ''} in progress` : "No active cases"}
+          subtitle={`${stats.totalCases} total cases`}
           icon={Briefcase}
         />
         <StatCard
           title="Billable Hours (Month)"
           value={loading ? "..." : stats.monthlyBillableHours.toFixed(1)}
-          subtitle="Current month"
+          subtitle={`$${stats.monthlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} revenue`}
           icon={Clock}
         />
         <StatCard
           title="Ready to Invoice"
           value={loading ? "..." : `$${stats.amountReadyToInvoice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          subtitle="Unbilled time"
+          subtitle={`${stats.unbilledEntriesCount} unbilled entries`}
           icon={DollarSign}
         />
-        {(user?.role === 'Admin' || user?.role === 'Developer') && (
-          <StatCard
-            title="Active Timers"
-            value={loading ? "..." : stats.activeTimers}
-            subtitle="Last 24 hours"
-            icon={Timer}
-          />
-        )}
-        {user?.role !== 'Admin' && user?.role !== 'Developer' && (
-          <StatCard
-            title="Pending Invoices"
-            value={loading ? "..." : `$${stats.pendingInvoicesAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-            subtitle={stats.pendingInvoicesAmount > 0 ? "Awaiting payment" : "All invoices paid"}
-            icon={DollarSign}
-          />
-        )}
+        <StatCard
+          title="Pending Invoices"
+          value={loading ? "..." : `$${stats.pendingInvoicesAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          subtitle={stats.pendingInvoicesCount > 0 ? `${stats.pendingInvoicesCount} awaiting payment` : "All invoices paid"}
+          icon={FileText}
+        />
       </div>
+
+      {(stats.overdueTasks > 0 || stats.activeTimers > 0) && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {stats.overdueTasks > 0 && (
+            <Card className="border-destructive/50 bg-destructive/5">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 bg-destructive/10 rounded-lg">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{stats.overdueTasks} Overdue Task{stats.overdueTasks > 1 ? 's' : ''}</p>
+                  <p className="text-xs text-muted-foreground">Requires attention</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {stats.activeTimers > 0 && (
+            <Card className="border-primary/50 bg-primary/5">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Timer className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{stats.activeTimers} Active Timer{stats.activeTimers > 1 ? 's' : ''}</p>
+                  <p className="text-xs text-muted-foreground">Currently running</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList>
@@ -269,7 +195,7 @@ const Dashboard = () => {
                           <div>
                             <p className="text-sm font-medium">{deadline.title}</p>
                             <p className="text-xs text-muted-foreground">
-                              {deadline.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {deadline.description}
+                              {new Date(deadline.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {deadline.description}
                             </p>
                           </div>
                         </div>

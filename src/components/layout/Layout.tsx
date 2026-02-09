@@ -4,6 +4,7 @@ import { Bell, Search, User, LogOut, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TimerWidget } from "@/components/timer/TimerWidget";
+import { GlobalAiWidget } from "@/components/ai/GlobalAiWidget";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Badge } from "@/components/ui/badge";
@@ -71,6 +72,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <main className="flex-1 bg-background">
             {children}
           </main>
+          <GlobalAiWidget />
         </div>
       </div>
     </SidebarProvider>

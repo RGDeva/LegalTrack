@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Contact } from '@/types';
+import { API_URL } from '@/lib/api-url';
 
 interface AddContactDialogProps {
   onContactAdded?: () => void;
@@ -48,28 +49,33 @@ export function AddContactDialog({ onContactAdded }: AddContactDialogProps) {
         return;
       }
 
-      // Create new contact
-      const newContact: Contact = {
-        id: `contact-${Date.now()}`,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        organization: formData.organization || undefined,
-        role: formData.role || undefined,
-        address: formData.address || undefined,
-        city: formData.city || undefined,
-        state: formData.state || undefined,
-        zip: formData.zip || undefined,
-        notes: formData.notes || undefined,
-        tags: [],
-        lastContact: new Date().toISOString().split('T')[0],
-      };
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`${API_URL}/contacts`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone || null,
+          organization: formData.organization || null,
+          role: formData.role || null,
+          address: formData.address || null,
+          city: formData.city || null,
+          state: formData.state || null,
+          zip: formData.zip || null,
+          notes: formData.notes || null,
+          tags: [],
+          lastContact: new Date()
+        })
+      });
 
-      // Save to localStorage
-      const existingContacts = localStorage.getItem('contacts');
-      const contacts = existingContacts ? JSON.parse(existingContacts) : [];
-      contacts.push(newContact);
-      localStorage.setItem('contacts', JSON.stringify(contacts));
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to add contact');
+      }
 
       toast.success('Contact added successfully');
       

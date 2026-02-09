@@ -12,9 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Clock, DollarSign, Timer } from "lucide-react";
+import { Clock, DollarSign, Timer, Loader2 } from "lucide-react";
 import { API_URL } from "@/lib/api-url";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/EmptyState";
 
 interface GlobalTimeEntry {
   id: string;
@@ -149,7 +150,16 @@ const Time = () => {
               </div>
             </div>
             {loading ? (
-              <div className="p-8 text-center text-muted-foreground">Loading time entries...</div>
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mr-2" />
+                <span className="text-muted-foreground">Loading time entries...</span>
+              </div>
+            ) : entries.length === 0 ? (
+              <EmptyState
+                icon={Clock}
+                title="No time entries yet"
+                description="Start tracking time on your cases. Use the timer or add manual entries."
+              />
             ) : (
               <Table>
                 <TableHeader>
