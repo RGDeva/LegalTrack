@@ -1,13 +1,15 @@
 import { useState, useEffect } from "react";
-import { Briefcase, Users, Clock, DollarSign, FileText, Calendar, Timer, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Briefcase, Users, Clock, DollarSign, FileText, Calendar, Timer, AlertTriangle, CheckCircle2, Bot, ChevronRight } from "lucide-react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { CaseList } from "@/components/cases/CaseList";
 import { CalendarView } from "@/components/dashboard/CalendarView";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { API_URL } from "@/lib/api-url";
 
 interface DashboardStats {
@@ -34,8 +36,16 @@ interface Deadline {
   assignedTo?: string;
 }
 
+const aiQuickActions = [
+  { label: "Log time entry", prompt: "Log 1.5 hrs for client consultation" },
+  { label: "Create task", prompt: "Create task for document review" },
+  { label: "Add contact", prompt: "Add new client contact" },
+  { label: "Draft invoice", prompt: "Create invoice draft" },
+];
+
 const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats>({
     activeCases: 0,
     totalCases: 0,
@@ -174,6 +184,40 @@ const Dashboard = () => {
               </Card>
             </div>
             <div className="space-y-6">
+              {/* AI Quick Access */}
+              <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Bot className="h-5 w-5 text-primary" />
+                    AI Assistant
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Quick actions — click to run via AI</p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {aiQuickActions.map((action, i) => (
+                      <button
+                        key={i}
+                        onClick={() => navigate('/ai-assistant')}
+                        className="flex items-center gap-1.5 text-xs px-2.5 py-2 rounded-md border bg-background hover:bg-muted transition-colors text-left"
+                      >
+                        <span className="truncate">{action.label}</span>
+                        <ChevronRight className="h-3 w-3 ml-auto shrink-0 text-muted-foreground" />
+                      </button>
+                    ))}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-2 text-xs"
+                    onClick={() => navigate('/ai-assistant')}
+                  >
+                    <Bot className="h-3.5 w-3.5 mr-1.5" />
+                    Open Full Assistant
+                  </Button>
+                </CardContent>
+              </Card>
+
               <RecentActivity />
               <Card>
                 <CardHeader>

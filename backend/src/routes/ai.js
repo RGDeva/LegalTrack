@@ -151,7 +151,77 @@ function parseUserMessage(message, context) {
     });
   }
 
-  return actions;
+  // --- Schedule event / hearing / meeting ---
+  const eventMatch = msg.match(/(?:schedule|add|create)\s+(?:a\s+)?(?:an\s+)?(event|hearing|meeting|deadline|reminder)\s+(?:for\s+|titled?\s+)?["']?(.+?)["']?(?:\s+(?:on|at|for)\s+(.+?))?$/i);
+  if (eventMatch && actions.length === 0) {
+    const eventType = eventMatch[1].toLowerCase();
+    const title = eventMatch[2].trim();
+    const dateStr = eventMatch[3]?.trim() || null;
+    let startTime = null;
+    if (dateStr) {
+      try { startTime = parseFuzzyDate(dateStr); } catch {}
+    }
+    actions.push({
+      type: 'create',
+      entity: 'event',
+      fields: {
+        title,
+        type: eventType,
+        startTime: startTime ? startTime.toISOString() : null,
+        endTime: startTime ? new Date(startTime.getTime() + 3600000).toISOString() : null,
+        caseId: context.caseId || null
+      },
+      summary: `Schedule ${eventType}: "${title}"${startTime ? ` on ${startTime.toLocaleDateString()}` : ' (date TBD)'}`
+    });
+  }
+
+  // --- Set task priority ---
+  const priorityMatch = msg.match(/(?:set|change|mark)\s+(?:task\s+)?priority\s+(?:to\s+|as\s+)?(high|medium|low|urgent|critical)/i);
+  if (priorityMatch && actions.length === 0 && context.caseId) {
+    const priority = priorityMatch[1].toLowerCase();
+    actions.push({
+      type: 'update',
+      entity: 'task',
+      fields: { priority: priority === 'urgent' || priority === 'critical' ? 'high' : priority },
+      summary: `Set task priority to ${priority}`
+    });
+  }
+
+  // --- Summarize / status check (no action, just helpful response) ---
+  const statusMatch = msg.match(/(?:show|what|give|get)\s+(?:me\s+)?(?:a\s+)?(?:summary|status|overview|stats|dashboard)/i);
+  if (statusMatch && actions.length === 0) {
+    // Return empty actions — the response generator will handle this
+    return { actions: [], isStatusQuery: true };
+  }
+
+  // --- Help command ---
+  if (msg === 'help' || msg === '?' || msg.match(/^what\s+can\s+you\s+do/i)) {
+    return { actions: [], isHelpQuery: true };
+  }
+
+  return { actions, isStatusQuery: false, isHelpQuery: false };
+}
+
+function parseFuzzyDate(str) {
+  const lower = str.toLowerCase().trim();
+  const now = new Date();
+  
+  if (lower === 'today') return now;
+  if (lower === 'tomorrow') return new Date(now.getTime() + 86400000);
+  if (lower.startsWith('next week')) return new Date(now.getTime() + 7 * 86400000);
+  if (lower.startsWith('next month')) return new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  
+  const inDaysMatch = lower.match(/in\s+(\d+)\s+days?/);
+  if (inDaysMatch) return new Date(now.getTime() + parseInt(inDaysMatch[1]) * 86400000);
+  
+  const inWeeksMatch = lower.match(/in\s+(\d+)\s+weeks?/);
+  if (inWeeksMatch) return new Date(now.getTime() + parseInt(inWeeksMatch[1]) * 7 * 86400000);
+
+  // Try standard date parse
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) return parsed;
+  
+  return null;
 }
 
 function generateSubtasksForTopic(topic) {
@@ -203,9 +273,19 @@ function generateSubtasksForTopic(topic) {
   ];
 }
 
-function generateAssistantResponse(message, actions, context) {
+function generateAssistantResponse(message, parseResult, context) {
+  const { actions, isStatusQuery, isHelpQuery } = parseResult;
+
+  if (isHelpQuery) {
+    return `Here's everything I can help you with:\n\n**⏱ Time Tracking**\n• "Log 2 hrs for client consultation"\n• "Log 30 min for document review under code RESEARCH"\n\n**📋 Tasks**\n• "Create task for motion to dismiss due next Friday"\n• "Create tasks for discovery with subtasks and due dates"\n\n**👤 Contacts**\n• "Add contact Jane Smith jane@law.com"\n• "Add opposing counsel contact"\n\n**📅 Calendar**\n• "Schedule hearing for Smith v. Jones on March 15"\n• "Schedule meeting for client intake tomorrow"\n\n**📁 Cases** (when inside a case)\n• "Set status to pending"\n• "Set priority to high"\n\n**💰 Invoices**\n• "Create invoice draft"\n\n**📝 Runsheet** (when inside a case)\n• "Add note: Filed motion for summary judgment"\n\nAll actions are shown for your review before being applied.`;
+  }
+
+  if (isStatusQuery) {
+    return `I can show you a quick overview! Here's what you can check:\n\n• Visit the **Dashboard** for case stats, billable hours, and deadlines\n• Check **Time Tracking** for your recent entries\n• View **Calendar** for upcoming events and hearings\n\nOr ask me to do something specific like "Log time" or "Create a task".`;
+  }
+
   if (actions.length === 0) {
-    return `I understand you said: "${message}"\n\nI can help you with:\n• **Log time**: "Log 1.5 hrs for client call under code CONSULT"\n• **Create tasks**: "Create tasks for discovery with subtasks and due dates"\n• **Add contacts**: "Add opposing counsel contact John Smith john@law.com"\n• **Update case**: "Set status to pending" (when inside a case)\n• **Create invoice**: "Create invoice draft"\n• **Add runsheet entry**: "Add note: Filed motion for summary judgment"\n\nPlease try one of these commands or rephrase your request.`;
+    return `I wasn't able to parse that into a specific action. Here are some things I can do:\n\n• **"Log 1.5 hrs for client call"** — track time\n• **"Create task for document review"** — add tasks\n• **"Schedule hearing for March 15"** — calendar events\n• **"Add contact John Smith"** — new contacts\n• **"Create invoice draft"** — billing\n\nType **"help"** for the full list of commands.`;
   }
 
   const summaries = actions.map((a, i) => `${i + 1}. **${a.summary}**`).join('\n');
@@ -213,10 +293,10 @@ function generateAssistantResponse(message, actions, context) {
   
   if (actions.some(a => a.subtasks)) {
     const taskAction = actions.find(a => a.subtasks);
-    response += `\n**Subtasks:**\n${taskAction.subtasks.map((s, i) => `  ${i + 1}. ${s.title} (due in ${s.dueOffset} days)`).join('\n')}\n\n`;
+    response += `**Subtasks:**\n${taskAction.subtasks.map((s, i) => `  ${i + 1}. ${s.title} (due in ${s.dueOffset} days)`).join('\n')}\n\n`;
   }
   
-  response += `Please review the proposed changes above and click **"Apply"** to execute them, or modify your request.`;
+  response += `Review the proposed changes above and click **"Apply"** to execute, or rephrase to adjust.`;
   return response;
 }
 
@@ -285,8 +365,12 @@ router.post('/actions', verifyToken, async (req, res) => {
     }
 
     // Parse message into actions
-    const proposedActions = parseUserMessage(message, context);
-    const assistantResponse = generateAssistantResponse(message, proposedActions, context);
+    const parseResult = parseUserMessage(message, context);
+    const proposedActions = parseResult.actions || parseResult;
+    const assistantResponse = generateAssistantResponse(message, 
+      Array.isArray(parseResult) ? { actions: parseResult } : parseResult, 
+      context
+    );
 
     // Save user message
     await prisma.aiMessage.create({
@@ -511,6 +595,35 @@ router.post('/apply-actions', verifyToken, async (req, res) => {
               entityId: result.id,
               fieldsAfter: result,
               description: `AI created runsheet entry: ${action.fields.title}`
+            }
+          });
+        }
+
+        // ── CREATE EVENT ──
+        if (action.entity === 'event' && action.type === 'create') {
+          const startTime = action.fields.startTime ? new Date(action.fields.startTime) : new Date(Date.now() + 86400000);
+          const endTime = action.fields.endTime ? new Date(action.fields.endTime) : new Date(startTime.getTime() + 3600000);
+
+          result = await prisma.event.create({
+            data: {
+              title: action.fields.title || 'AI-created event',
+              type: action.fields.type || 'event',
+              startTime,
+              endTime,
+              caseId: action.fields.caseId || null,
+              createdById: userId,
+              allDay: false
+            }
+          });
+
+          await prisma.aiAuditLog.create({
+            data: {
+              userId,
+              actionType: 'create',
+              entityType: 'event',
+              entityId: result.id,
+              fieldsAfter: result,
+              description: `AI created ${action.fields.type || 'event'}: ${action.fields.title}`
             }
           });
         }

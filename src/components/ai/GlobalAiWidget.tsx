@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Bot, Send, Loader2, Check, X, ChevronDown, Maximize2, Minimize2,
   AlertTriangle, Clock, FileText, Users, Briefcase, Receipt, Plus,
-  ChevronRight, History, MessageSquare
+  ChevronRight, History, MessageSquare, CalendarDays
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,14 +46,16 @@ const entityIcons: Record<string, any> = {
   case: Briefcase,
   invoice: Receipt,
   runsheet: FileText,
+  event: CalendarDays,
 };
 
 const quickPrompts = [
   { icon: Clock, label: "Log time", prompt: "Log 1.5 hrs for client consultation call" },
   { icon: FileText, label: "Create task", prompt: "Create tasks for discovery with subtasks and due dates" },
+  { icon: CalendarDays, label: "Schedule", prompt: "Schedule hearing for client case on next Monday" },
   { icon: Users, label: "Add contact", prompt: "Add opposing counsel contact" },
   { icon: Receipt, label: "Invoice", prompt: "Create invoice draft" },
-  { icon: Briefcase, label: "Update case", prompt: "Set case status to pending" },
+  { icon: Briefcase, label: "Help", prompt: "help" },
 ];
 
 export function GlobalAiWidget() {
