@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Bot, Send, Loader2, Check, X, ChevronDown, Maximize2, Minimize2,
   AlertTriangle, Clock, FileText, Users, Briefcase, Receipt, Plus,
-  ChevronRight, History, MessageSquare, CalendarDays
+  ChevronRight, History, MessageSquare, CalendarDays, StickyNote, HelpCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,17 +45,20 @@ const entityIcons: Record<string, any> = {
   contact: Users,
   case: Briefcase,
   invoice: Receipt,
-  runsheet: FileText,
+  runsheet: StickyNote,
   event: CalendarDays,
+  case_comment: MessageSquare,
 };
 
 const quickPrompts = [
+  { icon: Briefcase, label: "New case", prompt: "Create case Smith v. Jones type Civil priority High" },
+  { icon: Users, label: "Add contact", prompt: "Add contact Jane Smith jane@law.com at Smith & Associates" },
   { icon: Clock, label: "Log time", prompt: "Log 1.5 hrs for client consultation call" },
-  { icon: FileText, label: "Create task", prompt: "Create tasks for discovery with subtasks and due dates" },
+  { icon: FileText, label: "Create task", prompt: "Create task Review contract due next Friday priority high" },
   { icon: CalendarDays, label: "Schedule", prompt: "Schedule hearing for client case on next Monday" },
-  { icon: Users, label: "Add contact", prompt: "Add opposing counsel contact" },
-  { icon: Receipt, label: "Invoice", prompt: "Create invoice draft" },
-  { icon: Briefcase, label: "Help", prompt: "help" },
+  { icon: Receipt, label: "Invoice", prompt: "Create invoice draft for $2500 due next month" },
+  { icon: StickyNote, label: "Add note", prompt: "Add note: Client called regarding case status update" },
+  { icon: HelpCircle, label: "All commands", prompt: "help" },
 ];
 
 export function GlobalAiWidget() {
