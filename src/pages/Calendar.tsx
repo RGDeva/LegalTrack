@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { CalendarView } from "@/components/dashboard/CalendarView";
 import { MonthlyCalendar } from "@/components/calendar/MonthlyCalendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

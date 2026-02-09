@@ -73,13 +73,31 @@ export function GlobalAiWidget() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Don't render if not logged in
-  if (!user) return null;
+  // Keyboard shortcut: Cmd/Ctrl + K to toggle
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setOpen(prev => {
+          if (!prev) setUnreadCount(0);
+          return !prev;
+        });
+      }
+      // Escape to close
+      if (e.key === 'Escape' && open) {
+        setOpen(false);
+        setFullscreen(false);
+        setShowHistory(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open]);
 
   useEffect(() => {
     if (open) {
       loadConversations();
-      inputRef.current?.focus();
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [open]);
 
@@ -98,6 +116,9 @@ export function GlobalAiWidget() {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, [open]);
+
+  // Don't render if not logged in
+  if (!user) return null;
 
   const loadConversations = async () => {
     try {
