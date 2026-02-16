@@ -1056,4 +1056,5 @@ router.get('/audit-log', verifyToken, async (req, res) => {
   }
 });
 
+export { parseUserMessage, generateAssistantResponse };
 export default router;

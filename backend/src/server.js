@@ -20,6 +20,25 @@ console.log('GOOGLE_CLIENT_SECRET exists:', !!process.env.GOOGLE_CLIENT_SECRET);
 console.log('GOOGLE_CLIENT_SECRET prefix:', process.env.GOOGLE_CLIENT_SECRET?.substring(0, 10) || 'missing');
 console.log('GOOGLE_REDIRECT_URI:', process.env.GOOGLE_REDIRECT_URI || 'not set (using fallback)');
 console.log('FRONTEND_URL:', process.env.FRONTEND_URL || 'not set');
+console.log('OPENAI_API_KEY exists:', !!process.env.OPENAI_API_KEY);
+if (process.env.OPENAI_API_KEY) {
+  console.log('✅ OpenAI API key configured - Enhanced AI mode enabled');
+} else {
+  console.log('⚠️  No OpenAI API key - AI will use rule-based parser only');
+}
+
+// Mail provider configuration
+const mailProvider = process.env.MAIL_PROVIDER || 'resend';
+console.log('MAIL_PROVIDER:', mailProvider);
+console.log('RESEND_API_KEY exists:', !!process.env.RESEND_API_KEY);
+console.log('UNOSEND_API_KEY exists:', !!process.env.UNOSEND_API_KEY);
+if (mailProvider === 'resend' && process.env.RESEND_API_KEY) {
+  console.log('✅ Mail provider: Resend (configured)');
+} else if (mailProvider === 'unosend' && process.env.UNOSEND_API_KEY) {
+  console.log('✅ Mail provider: Unosend (configured)');
+} else {
+  console.log('⚠️  Mail provider not fully configured');
+}
 
 // Allowed origins for CORS
 const allowedOrigins = [
@@ -78,6 +97,7 @@ import googleContactsRoutes from './routes/googleContacts.js';
 import googleDriveCaseRoutes from './routes/googleDriveCase.js';
 import voiceCaptureRoutes from './routes/voiceCapture.js';
 import aiRoutes from './routes/ai.js';
+import aiOpenAIRoutes from './routes/aiOpenAI.js';
 import dashboardRoutes from './routes/dashboard.js';
 import eventsRoutes from './routes/events.js';
 
@@ -174,6 +194,7 @@ app.use('/api/google-contacts', googleContactsRoutes);
 app.use('/api/google-drive-case', googleDriveCaseRoutes);
 app.use('/api/voice-capture', voiceCaptureRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/ai', aiOpenAIRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/events', eventsRoutes);
 

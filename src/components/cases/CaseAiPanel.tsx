@@ -72,7 +72,7 @@ export function CaseAiPanel({ caseId, caseNumber }: CaseAiPanelProps) {
 
     try {
       const token = localStorage.getItem("authToken");
-      const res = await fetch(`${API_URL}/ai/actions`, {
+      const res = await fetch(`${API_URL}/ai/actions-openai`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

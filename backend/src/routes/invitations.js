@@ -2,11 +2,10 @@ import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { verifyToken, verifyAdmin } from '../middleware/auth.js';
 import crypto from 'crypto';
-import { Resend } from 'resend';
+import { sendEmail } from '../services/mailProvider.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 // POST invite user (Admin only)
 router.post('/invite', verifyToken, verifyAdmin, async (req, res) => {
@@ -48,7 +47,7 @@ router.post('/invite', verifyToken, verifyAdmin, async (req, res) => {
     const inviteUrl = `${frontendUrl}/accept-invite?token=${inviteToken}`;
 
     try {
-      await resend.emails.send({
+      await sendEmail({
         from: process.env.EMAIL_FROM || 'LegalTrack <notifications@resend.dev>',
         to: email,
         subject: 'You\'ve been invited to join LegalTrack',
@@ -86,7 +85,7 @@ router.post('/invite', verifyToken, verifyAdmin, async (req, res) => {
             </div>
           </body>
           </html>
-        `
+        `,
       });
     } catch (emailError) {
       console.error('Failed to send invitation email:', emailError);
