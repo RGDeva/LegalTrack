@@ -17,6 +17,8 @@ RUN npx prisma generate
 # Copy remaining source files
 COPY src/ ./src/
 COPY templates/ ./templates/
+COPY scripts/ ./scripts/
+COPY apply-invite-migration.js ./
 
 # Railway injects PORT at runtime
 EXPOSE 8080
